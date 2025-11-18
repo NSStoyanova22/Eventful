@@ -9,7 +9,7 @@
 
 <p align="center">
   🌟 <i>Track our visitor growth:</i> 🌟<br>
- <img align="center" src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2FAAVezirova22%2FEventHub&label=VISITORS&labelColor=%23d9e3f0&countColor=%23263760">
+ <img align="center" src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2FAAVezirova22%2FEventful&label=VISITORS&labelColor=%23d9e3f0&countColor=%23263760">
 </p>
 
 ---
@@ -79,7 +79,7 @@ Start the development server:
 ```bash
 npm run dev
 ```
-<b>Shortcut to the Figma design</b> <br> <br> https://www.figma.com/design/qwqYFfGsY98Ew7eUUVVMzf/EventHub?node-id=0-1&node-type=canvas&t=pxEMd7OpAokQTtx0-0
+<b>Shortcut to the Figma design</b> <br> <br> https://www.figma.com/design/qwqYFfGsY98Ew7eUUVVMzf/Eventful?node-id=0-1&node-type=canvas&t=pxEMd7OpAokQTtx0-0
 </div>
 
 ## 📂 Project Documents
@@ -90,7 +90,7 @@ npm run dev
 [✏Presentation](https://codingburgas-my.sharepoint.com/:p:/r/personal/nsstoyanova22_codingburgas_bg/_layouts/15/doc2.aspx?sourcedoc=%7B94048B89-FA06-4AEA-A60F-663FF4539DF4%7D&file=726.pptx&action=edit&mobileredirect=true&wdOrigin=SEARCHENGINE.GOOGLE%2CAPPHOME-WEB.BANNER.UPLOAD&wdPreviousSession=6fe897c7-512b-4a84-9b6f-a8d1b279d51c&wdPreviousSessionSrc=AppHomeWeb&ct=1741043298588)
 
 ### Design
-[🎨Design](https://www.figma.com/design/qwqYFfGsY98Ew7eUUVVMzf/EventHub?node-id=0-1&node-type=canvas&t=pxEMd7OpAokQTtx0-0)
+[🎨Design](https://www.figma.com/design/qwqYFfGsY98Ew7eUUVVMzf/Eventful?node-id=0-1&node-type=canvas&t=pxEMd7OpAokQTtx0-0)
 
 # 👥 Team
 <p align="center"> <table> <tr> <th>Name</th> <th>Role</th> </tr> <tr> <td align="center"><b>🟦 Ани Везирова</b></td> <td align="center">Frontend Developer</td> </tr> <tr> <td align="center"><b>🟦 Никол Стоянова</b></td> <td align="center">Backend Developer</td> </tr> </table> </p> <br /> <br /> <br /> <br />

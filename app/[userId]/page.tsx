@@ -467,7 +467,7 @@ useEffect(() => {
             type="checkbox"
             className="h-4 w-4"
           />
-          <span className="text-sm">I agree to receive emails from EventHub</span>
+          <span className="text-sm">I agree to receive emails from Eventful</span>
         </div>
       </div>
 

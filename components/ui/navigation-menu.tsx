@@ -310,7 +310,7 @@ export default function Navbar() {
                 {/* add icon */}
                 <a href="/">
                   <NavigationMenuLink className="font-bold text-2xl ml-3 ">
-                    EventHub
+                    Eventful
                   </NavigationMenuLink>
                 </a>
               </NavigationMenuItem>
