@@ -55,35 +55,53 @@ export async function GET(req: NextRequest) {
 
 
 export async function PATCH(req: NextRequest) {
-    console.log("Profile Picture Update API hit", req.body);
+    console.log("Profile update API hit");
     await connect();
 
     try {
-        const { email, image } = await req.json();
-        console.log("Request body:", { email, image });
+        const { email, image, name, lastName } = await req.json();
+        console.log("Request body:", { email, hasImage: Boolean(image), hasName: Boolean(name), hasLastName: Boolean(lastName) });
 
-        if (!email || !image) {
-            return NextResponse.json({ error: "Email and profile picture URL are required" }, { status: 400 });
+        if (!email) {
+            return NextResponse.json({ error: "Email is required" }, { status: 400 });
         }
 
-        const user = await User.findOne({ email });
-        if (!user) {
+        const updates: Record<string, string> = {};
+
+        if (typeof image === "string" && image.trim() !== "") {
+            updates.image = image.trim();
+        }
+        if (typeof name === "string" && name.trim() !== "") {
+            updates.name = name.trim();
+        }
+        if (typeof lastName === "string" && lastName.trim() !== "") {
+            updates.lastName = lastName.trim();
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return NextResponse.json({ error: "No update fields provided" }, { status: 400 });
+        }
+
+        const updatedUser = await User.findOneAndUpdate(
+            { email },
+            { $set: updates },
+            { new: true }
+        );
+
+        if (!updatedUser) {
             console.log("User not found");
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        user.image = image;
-        await user.save();
-
-        console.log("Profile picture updated successfully:", user);
+        console.log("Profile updated successfully:", updates);
         return NextResponse.json({
-            message: "Profile picture updated successfully",
+            message: "Profile updated successfully",
             success: true,
-            user
+            user: updatedUser
         });
 
     } catch (error: any) {
-        console.error("Error in profile picture update API:", error);
+        console.error("Error in profile update API:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

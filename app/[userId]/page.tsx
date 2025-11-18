@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/ui/navigation-menu";
 import { DateTime } from 'luxon';
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import ProfilePost from "@/components/ui/post";
 import { signOut } from "next-auth/react"
 import Link from "next/link";
@@ -27,13 +27,14 @@ export default function UserProfile() {
   const {data:session} = useSession();
   const [userSession, setUserSession] = useState(Object);
   const [imageSrc, setImageSrc] = useState('');
-  // const token = getToken({req: param});
   const [posts, setPosts] = useState<any[]>([]);
   const [attendingEvents, setAttendingEvents] = useState<any[]>([]);
   const userId = session?.user?.id;
     const [currentIndex, setCurrentIndex] = useState(0); 
     const [openSettings, setOpenSettings] = useState(false);
     const [email, setEmail] = useState("");
+    const [newName, setNewName] = useState("");
+    const [lastName, setLastName] = useState("");
     const [password, setPassword] = useState("********");
     const [country, setCountry] = useState("");
     const [state, setState] = useState("");
@@ -46,9 +47,63 @@ export default function UserProfile() {
     const [countries, setCountries] = useState([]);
     
     const [fileUrl, setFileUrl] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
-  const handleEdit = (field : any) => {
-    
+  const handleSave = async () => {
+    if (!session?.user?.email) {
+      toast("Missing user session.");
+      return;
+    }
+
+    const payload: Record<string, string> = { email: session.user.email };
+    const trimmedName = newName.trim();
+    const trimmedLastName = lastName.trim();
+
+    if (fileUrl && fileUrl !== user?.image) {
+      payload.image = fileUrl;
+    }
+    if (trimmedName && trimmedName !== user?.name) {
+      payload.name = trimmedName;
+    }
+    if (trimmedLastName && trimmedLastName !== user?.lastName) {
+      payload.lastName = trimmedLastName;
+    }
+
+    if (Object.keys(payload).length === 1) {
+      toast("No changes to save.");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const response = await fetch("/api/register", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Profile update failed:", text);
+        throw new Error("Failed to update profile");
+      }
+
+      const data = await response.json();
+      if (data?.user) {
+        setUser(data.user);
+        setFileUrl(data.user.image ?? null);
+      }
+      await fetch("/api/auth/session?update=true");
+      toast("Profile updated!");
+      setNewName("");
+      setLastName("");
+      setOpenSettings(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast("Failed to update profile.");
+    } finally {
+      setIsSaving(false);
+    }
   };
     // fetch all events
     useEffect(() => {
@@ -182,6 +237,8 @@ useEffect(() => {
   }
 }, [fileUrl]) 
 
+// manage profile pic upload or change, convert to base64
+
 const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 
   let file = event.target.files?.[0];
@@ -195,33 +252,6 @@ const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 };
 
 
-
-const handleUpload = async () => {
-  if (!fileUrl) return;
-  
-  const formData = new FormData();
-  formData.append("image", fileUrl || "");
-  const body = JSON.stringify({email: session?.user.email, image: fileUrl});
-  try {
-    const response = await fetch("/api/register", {
-      method: "PATCH",
-      body: body,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to update profile picture");
-    }
-
-    const data = await response.json();
-    console.log("Profile pic updated:", data);
-    toast("Profile picture updated!");
-    await fetch("/api/auth/session?update=true"); 
-  } catch (error) {
-    console.error("Error:", error);
-  }
-};
-
-
 const toBase64 = (file:any) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.readAsDataURL(file);
@@ -229,35 +259,46 @@ const toBase64 = (file:any) => new Promise((resolve, reject) => {
   reader.onerror = error => reject(error);
 });
 const [user, setUser] = useState<any>(null);
-useEffect(() => {
-  const fetchUserByEmail = async () => {
-    try {
-      const response = await fetch("/api/currentUser", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: session?.user?.email }), 
-      });
+const fetchUserByEmail = useCallback(async () => {
+  try {
+    const response = await fetch("/api/currentUser", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: session?.user?.email }), 
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch user");
-      }
-
-      const data = await response.json();
-      if (data.user) {
-        setUser(data.user); 
-      }
-    } catch (error) {
-      console.error("Error fetching user:", error);
+    if (!response.ok) {
+      throw new Error("Failed to fetch user");
     }
-  };
 
+    const data = await response.json();
+    if (data.user) {
+      setUser(data.user); 
+      setFileUrl((prev) => prev || data.user.image || null);
+    }
+  } catch (error) {
+    console.error("Error fetching user:", error);
+  }
+}, [session?.user?.email]);
+
+useEffect(() => {
   if (session?.user?.email) {
     fetchUserByEmail();
   }
-}, [session?.user?.email]); 
+}, [session?.user?.email, fetchUserByEmail]); 
 
+
+
+    // manage refresh after profile update§
+    const handleToggleSettings = () => {
+      if (openSettings) {
+        router.refresh();
+      }
+      setOpenSettings((prev) => !prev);
+    };
+ 
 
 
     return(
@@ -307,7 +348,7 @@ useEffect(() => {
           <p className="text-gray-500 text-sm mb-4">events created</p>
 
           {/* <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" id="fileInput" /> */}
-          <button onClick={() => setOpenSettings(!openSettings)} className="bg-indigo-700 text-white px-4 py-2 rounded-3xl cursor-pointer">{openSettings ? "Done" :  "Edit profile"}</button>
+          <button onClick={handleToggleSettings} className="bg-indigo-700 text-white px-4 py-2 rounded-3xl cursor-pointer">{openSettings ? "Done" :  "Edit profile"}</button>
           <a href="/signup"><button onClick={() => signOut()} className="mt-2 text-gray-500 border px-4 py-2 rounded-3xl">Sign out</button></a>
         </aside>
          {/* IF settings are open */}
@@ -338,7 +379,10 @@ useEffect(() => {
   <div className="flex items-center space-x-2">
     <input
       type="text"
-      placeholder={user?.name || "First Name"}
+      id="nameInput"
+      placeholder="First Name"
+      value={newName}
+      onChange={(e) => setNewName(e.target.value)}
       className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none"
     />
   </div>
@@ -349,7 +393,9 @@ useEffect(() => {
   <div className="flex items-center space-x-2">
     <input
       type="text"
-      placeholder={user?.lastName || "Last Name"}
+      placeholder="Last Name"
+      value={lastName}
+      onChange={(e) => setLastName(e.target.value)}
       className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none"
     />
   </div>
@@ -476,8 +522,8 @@ useEffect(() => {
         {/* Empty label just for layout consistency */}
         <label className="text-lg mt-2"></label>
         <div className="flex items-center space-x-2">
-          <button onClick={handleUpload} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            Save
+          <button onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed">
+            {isSaving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
