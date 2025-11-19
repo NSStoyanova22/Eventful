@@ -25,7 +25,14 @@ export default function MyNotifications() {
   };
 
   const handleDelete = (index: number) => {
-    const updatedNotifications = notifications.filter((_, i) => i !== index);
+    let updatedNotifications: Notification[];
+
+    if (index < 0) {
+      updatedNotifications = [];
+    } else {
+      updatedNotifications = notifications.filter((_, i) => i !== index);
+    }
+
     setNotifications(updatedNotifications);
     localStorage.setItem("notifications", JSON.stringify(updatedNotifications));
   };

@@ -380,7 +380,7 @@ export default function UserProfile() {
                 <HoverCardTrigger className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-2 text-sm font-medium shadow-inner">{userStatus}
                   <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span>
                 </HoverCardTrigger>
-                <HoverCardContent className="bg-white text-slate-600 p-4 rounded-2xl shadow-xl border border-slate-100">
+                <HoverCardContent className="bg-gradient-to-b to-slate-950 via-blue-800 from-indigo-700  text-slate-400 p-4 rounded-2xl shadow-xl border border-slate-100">
                   <div>
                     <span role="img" aria-label="flower">✿</span> <strong>Newbie</strong> - Starting your journey. 0 events created. Keep pushing!
                   </div>
