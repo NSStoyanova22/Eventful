@@ -306,7 +306,7 @@ export default function UserProfile() {
     <>
       <Navbar />
       <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 px-4 py-12">
-        <div className="mx-auto w-full max-w-6xl grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="mx-auto w-full max-w-7xl grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
           {/* left side */}
 
           <aside className="rounded-3xl border border-white/5 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-6 shadow-2xl text-white flex flex-col items-center gap-4">
@@ -568,7 +568,9 @@ export default function UserProfile() {
                     <button onClick={prevPage} disabled={currentIndex === 0} className={`rounded-full border px-3 py-2 text-lg font-bold transition ${currentIndex === 0 ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'}`} >&lt;</button>
                     <div className="flex flex-1 flex-wrap justify-center gap-4">
                       {paginatedEvents.slice().reverse().map((post) => (
-                        <ProfilePost key={post._id} post={post} />
+                        <div key={post._id} className="w-full md:w-[48%]">
+                          <ProfilePost post={post} />
+                        </div>
                       ))}
                     </div>
                     <button onClick={nextPage} disabled={currentIndex + eventsPerPage >= filteredEvents.length} className={`rounded-full border px-3 py-2 text-lg font-bold transition ${currentIndex + eventsPerPage >= filteredEvents.length ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'}`}>&gt;</button>
