@@ -31,6 +31,7 @@ export default function UserProfile() {
   const [attendingEvents, setAttendingEvents] = useState<any[]>([]);
   const userId = session?.user?.id;
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [attendingIndex, setAttendingIndex] = useState(0);
   const [openSettings, setOpenSettings] = useState(false);
   const [email, setEmail] = useState("");
   const [newName, setNewName] = useState("");
@@ -136,6 +137,7 @@ export default function UserProfile() {
   });
   const eventsPerPage = 2;
   const paginatedEvents = filteredEvents.slice(currentIndex, currentIndex + eventsPerPage);
+  const paginatedAttendingEvents = attendingEvents.slice(attendingIndex, attendingIndex + eventsPerPage);
   const nextPage = () => {
     if (currentIndex + eventsPerPage < filteredEvents.length) {
       setCurrentIndex(currentIndex + eventsPerPage);
@@ -147,6 +149,21 @@ export default function UserProfile() {
       setCurrentIndex(currentIndex - eventsPerPage);
     }
   };
+  const nextAttendingPage = () => {
+    if (attendingIndex + eventsPerPage < attendingEvents.length) {
+      setAttendingIndex(attendingIndex + eventsPerPage);
+    }
+  };
+
+  const prevAttendingPage = () => {
+    if (attendingIndex - eventsPerPage >= 0) {
+      setAttendingIndex(attendingIndex - eventsPerPage);
+    }
+  };
+
+  useEffect(() => {
+    setAttendingIndex(0);
+  }, [attendingEvents.length]);
   // manage page counter and user status
   let eventCounter = filteredEvents.length;
   let userStatus = "";
@@ -581,17 +598,37 @@ export default function UserProfile() {
                 <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-slate-900">Attending</h3>
-                    <span className="text-sm text-slate-500">{attendingEvents.length} events</span>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Page {Math.floor(attendingIndex / eventsPerPage) + 1 || 1}</span>
                   </div>
-                  <div className="flex flex-wrap gap-4">
-                    {attendingEvents.length > 0 ? (
-                      attendingEvents.map((event) => (
-                        <ProfilePost key={event._id} post={event} />
-                      ))
-                    ) : (
-                      <p className="text-slate-500">No attending events yet.</p>
-                    )}
-                  </div>
+                  {attendingEvents.length > 0 ? (
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={prevAttendingPage}
+                        disabled={attendingIndex === 0}
+                        className={`rounded-full border px-3 py-2 text-lg font-bold transition ${attendingIndex === 0 ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'
+                          }`}
+                      >
+                        &lt;
+                      </button>
+                      <div className="flex flex-1 flex-wrap justify-center gap-4">
+                        {paginatedAttendingEvents.slice().reverse().map((event) => (
+                          <div key={event._id} className="w-full md:w-[48%]">
+                            <ProfilePost post={event} />
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={nextAttendingPage}
+                        disabled={attendingIndex + eventsPerPage >= attendingEvents.length}
+                        className={`rounded-full border px-3 py-2 text-lg font-bold transition ${attendingIndex + eventsPerPage >= attendingEvents.length ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'
+                          }`}
+                      >
+                        &gt;
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-slate-500">No attending events yet.</p>
+                  )}
                 </div>
               </section>
             </>}
