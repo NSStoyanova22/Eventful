@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       guestLimit,
       attending,
       createdBy: userId,
+      createdByName: user.username,
       status: moderationStatus,
     });
 
@@ -82,15 +83,11 @@ export async function GET(req: NextRequest) {
 
     const eventsWithUserDetails = await Promise.all(
       events.map(async (event) => {
-        const user = await User.findById(event.createdBy).select("name image");
-        const current = await User.findById(user._id);
-        console.log("current: ", current);
+        const user = await User.findById(event.createdBy).select("username image");
         return {
           ...event.toObject(),
-          createdByName: current.username,
-          createdByImage: user
-            ? user.image
-            : "https://cdn.pfps.gg/pfps/2301-default-2.png",
+          createdByName: event.createdByName || user?.username || "Eventful Host",
+          createdByImage: user?.image || "https://cdn.pfps.gg/pfps/2301-default-2.png",
         };
       })
     );

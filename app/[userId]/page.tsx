@@ -36,6 +36,7 @@ export default function UserProfile() {
   const [email, setEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [newUsername, setNewUsername] = useState("");
   const [password, setPassword] = useState("********");
   const [country, setCountry] = useState("");
   const [state, setState] = useState("");
@@ -46,6 +47,7 @@ export default function UserProfile() {
   });
   const [receiveEmails, setReceiveEmails] = useState(false);
   const [countries, setCountries] = useState([]);
+  const [user, setUser] = useState<any>(null);
 
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +61,7 @@ export default function UserProfile() {
     const payload: Record<string, string> = { email: session.user.email };
     const trimmedName = newName.trim();
     const trimmedLastName = lastName.trim();
+    const trimmedUsername = newUsername.trim();
 
     if (fileUrl && fileUrl !== user?.image) {
       payload.image = fileUrl;
@@ -68,6 +71,9 @@ export default function UserProfile() {
     }
     if (trimmedLastName && trimmedLastName !== user?.lastName) {
       payload.lastName = trimmedLastName;
+    }
+    if (trimmedUsername && trimmedUsername !== user?.username) {
+      payload.username = trimmedUsername;
     }
 
     if (Object.keys(payload).length === 1) {
@@ -98,6 +104,7 @@ export default function UserProfile() {
       toast("Profile updated!");
       setNewName("");
       setLastName("");
+      setNewUsername("");
       setOpenSettings(false);
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -132,9 +139,35 @@ export default function UserProfile() {
   //filter events created by user
   console.log(posts);
   console.log("User name", session?.user?.name);
-  const filteredEvents = posts.filter((event) => {
-    return event.createdByName == session?.user?.name;
-  });
+  const isEventCreatedByCurrentUser = (event: any) => {
+    if (!event || !userId) {
+      return false;
+    }
+
+    const createdBy = event.createdBy;
+    if (typeof createdBy === "string" && createdBy === userId) {
+      return true;
+    }
+    if (createdBy && typeof createdBy === "object") {
+      if (typeof createdBy._id === "string" && createdBy._id === userId) {
+        return true;
+      }
+      if (createdBy._id?.toString && createdBy._id.toString() === userId) {
+        return true;
+      }
+      if (createdBy.toString && createdBy.toString() === userId) {
+        return true;
+      }
+    }
+
+    if (user?.username && event.createdByName) {
+      return event.createdByName === user.username;
+    }
+
+    return false;
+  };
+
+  const filteredEvents = posts.filter((event) => isEventCreatedByCurrentUser(event));
   const eventsPerPage = 2;
   const paginatedEvents = filteredEvents.slice(currentIndex, currentIndex + eventsPerPage);
   const paginatedAttendingEvents = attendingEvents.slice(attendingIndex, attendingIndex + eventsPerPage);
@@ -276,7 +309,6 @@ export default function UserProfile() {
     reader.onload = () => resolve(reader.result);
     reader.onerror = error => reject(error);
   });
-  const [user, setUser] = useState<any>(null);
   const fetchUserByEmail = useCallback(async () => {
     try {
       const response = await fetch("/api/currentUser", {
@@ -427,6 +459,17 @@ export default function UserProfile() {
                       placeholder="Last Name"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                  {/* Username */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-500">Username</label>
+                    <input
+                      type="text"
+                      placeholder={user?.username ? `@${user.username}` : "Username"}
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     />
                   </div>

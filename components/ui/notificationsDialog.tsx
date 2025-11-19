@@ -61,7 +61,9 @@ export default function NotificationDialog({
               ))
             )}
           </div>
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end gap-4">
+            
+            <Button onClick={() => onDelete(notifications.length)} className="p-2 bg-clear text-sky-800 hover:bg-sky-200">Clear all</Button>
             <Button onClick={onClose} variant="default" className="bg-sky-800 text-white">
               Close
             </Button>

@@ -1,5 +1,6 @@
 import { connect } from "@/app/config/dbConfig";
 import User from "@/app/models/user";
+import Event from "@/app/models/event";
 import bcryptjs from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -59,31 +60,60 @@ export async function PATCH(req: NextRequest) {
     await connect();
 
     try {
-        const { email, image, name, lastName } = await req.json();
-        console.log("Request body:", { email, hasImage: Boolean(image), hasName: Boolean(name), hasLastName: Boolean(lastName) });
+        const { email, image, name, lastName, username } = await req.json();
+        console.log("Request body:", {
+            email,
+            hasImage: Boolean(image),
+            hasName: Boolean(name),
+            hasLastName: Boolean(lastName),
+            hasUsername: Boolean(username)
+        });
 
         if (!email) {
             return NextResponse.json({ error: "Email is required" }, { status: 400 });
         }
 
-        const updates: Record<string, string> = {};
+        const existingUser = await User.findOne({ email });
+        if (!existingUser) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
 
-        if (typeof image === "string" && image.trim() !== "") {
-            updates.image = image.trim();
+        const updates: Record<string, string> = {};
+        let usernameChanged = false;
+        const trimmedImage = typeof image === "string" ? image.trim() : "";
+        const trimmedName = typeof name === "string" ? name.trim() : "";
+        const trimmedLastName = typeof lastName === "string" ? lastName.trim() : "";
+        const trimmedUsername = typeof username === "string" ? username.trim() : "";
+
+        if (trimmedImage) {
+            updates.image = trimmedImage;
         }
-        if (typeof name === "string" && name.trim() !== "") {
-            updates.name = name.trim();
+        if (trimmedName) {
+            updates.name = trimmedName;
         }
-        if (typeof lastName === "string" && lastName.trim() !== "") {
-            updates.lastName = lastName.trim();
+        if (trimmedLastName) {
+            updates.lastName = trimmedLastName;
+        }
+        if (trimmedUsername && trimmedUsername !== existingUser.username) {
+            const usernameTaken = await User.findOne({
+                username: trimmedUsername,
+                _id: { $ne: existingUser._id }
+            });
+
+            if (usernameTaken) {
+                return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+            }
+
+            updates.username = trimmedUsername;
+            usernameChanged = true;
         }
 
         if (Object.keys(updates).length === 0) {
             return NextResponse.json({ error: "No update fields provided" }, { status: 400 });
         }
 
-        const updatedUser = await User.findOneAndUpdate(
-            { email },
+        const updatedUser = await User.findByIdAndUpdate(
+            existingUser._id,
             { $set: updates },
             { new: true }
         );
@@ -91,6 +121,27 @@ export async function PATCH(req: NextRequest) {
         if (!updatedUser) {
             console.log("User not found");
             return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        if (usernameChanged && updates.username) {
+            const newUsername = updates.username;
+
+            await Event.updateMany(
+                { createdBy: existingUser._id },
+                { $set: { createdByName: newUsername } }
+            );
+
+            await Event.updateMany(
+                { "comments.userId": existingUser._id },
+                {
+                    $set: {
+                        "comments.$[comment].userName": newUsername
+                    }
+                },
+                {
+                    arrayFilters: [{ "comment.userId": existingUser._id }]
+                }
+            );
         }
 
         console.log("Profile updated successfully:", updates);
