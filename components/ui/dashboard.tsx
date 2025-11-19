@@ -23,6 +23,7 @@ interface Event {
 }
 
 export default function Dashboard() {
+  const [user, setUser] = useState<any>(null);
   const { t  } = useTranslation();
   const { data: session } = useSession();
   const profileHref =
@@ -48,6 +49,34 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  useEffect(() => {
+    const fetchUserByEmail = async () => {
+      try {
+        const response = await fetch("/api/currentUser", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: session?.user?.email }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch user");
+        }
+
+        const data = await response.json();
+        if (data?.user) {
+          setUser(data.user);
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error);
+      }
+    };
+
+    if (session?.user?.email) {
+      fetchUserByEmail();
+    }
+  }, [session?.user?.email]);
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -159,6 +188,7 @@ export default function Dashboard() {
     } finally {
       setUploading(false);
     }
+
   };
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-10 text-white">
@@ -169,7 +199,7 @@ export default function Dashboard() {
               {hourMessage}
             </p>
             <h1 className="text-4xl font-semibold leading-tight md:text-5xl">
-              {session?.user?.name || "Creator"}, ready to craft your next event?
+              {user ? `${user.name} ${user.lastName}` : "Creator"}, ready to craft your next event?
             </h1>
             <p className="text-sm text-white/70 md:text-base">
               Track attending guests, share memories from finished events, and discover trending experiences tailored for you.

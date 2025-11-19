@@ -21,6 +21,12 @@ import {
 } from "@/components/ui/hover-card"
 import { toast } from "sonner";
 
+type CountryOption = {
+  code: string;
+  name: string;
+  region: string;
+  subregion: string;
+};
 
 export default function UserProfile() {
   const router = useRouter();
@@ -46,7 +52,7 @@ export default function UserProfile() {
     year: "1994",
   });
   const [receiveEmails, setReceiveEmails] = useState(false);
-  const [countries, setCountries] = useState([]);
+  const [countries, setCountries] = useState<CountryOption[]>([]);
   const [user, setUser] = useState<any>(null);
 
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -237,20 +243,12 @@ export default function UserProfile() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const response = await fetch("https://restcountries.com/v3.1/all");
-        const data = await response.json();
-
-        const countryList = data.map((country: any) => ({
-          code: country.cca2,
-          name: country.name.common,
-          subregions: country.subregion ? [country.subregion] : [],
-        }));
-
-        const sortedCountries = countryList.sort((a: any, b: any) =>
-          a.name.localeCompare(b.name)
-        );
-
-        setCountries(sortedCountries);
+        const response = await fetch("/api/countries");
+        if (!response.ok) {
+          throw new Error("Failed to fetch countries");
+        }
+        const data: CountryOption[] = await response.json();
+        setCountries(data);
       } catch (error) {
         console.error("Error fetching countries:", error);
       }
@@ -261,14 +259,21 @@ export default function UserProfile() {
 
   const handleCountrySelect = async (countryName: string) => {
     try {
-      const response = await fetch(`https://restcountries.com/v3.1/name/${countryName}?fullText=true`);
-      const data = await response.json();
+      const response = await fetch(`/api/countries?name=${encodeURIComponent(countryName)}`);
+      if (response.status === 404) {
+        setSelectedCountry(null);
+        setRegion(null);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Failed to fetch country");
+      }
+      const data: CountryOption[] = await response.json();
 
-      // Check if country exists
       if (data.length > 0) {
         const selectedCountry = data[0];
-        setSelectedCountry(selectedCountry.name.common);
-        setRegion(selectedCountry.region);  // Get the region here
+        // setSelectedCountry(selectedCountry.name);
+        // setRegion(selectedCountry.region);
       } else {
         console.log("Country not found.");
       }
@@ -277,8 +282,12 @@ export default function UserProfile() {
     }
   };
   useEffect(() => {
-
-    handleCountrySelect(country);
+    if (country) {
+      handleCountrySelect(country);
+    } else {
+      setSelectedCountry(null);
+      setRegion(null);
+    }
   }, [country]);
 
   useEffect(() => {
@@ -504,11 +513,12 @@ export default function UserProfile() {
                   <div className="flex items-center space-x-2">
                     <select
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                      defaultValue=""
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
                     >
                       <option value="">Not chosen</option>
-                      {countries.map((country: any) => (
-                        <option key={country.code} value={country.code}>
+                      {countries.map((country) => (
+                        <option key={country.code} value={country.name}>
                           {country.name}
                         </option>
                       ))}
@@ -619,7 +629,7 @@ export default function UserProfile() {
                 </div>
 
                 {/* Created Events */}
-                <div className="rounded-2xl border border-slate-100 bg-gradient-to-r from-blue-50 to-sky-50 p-6 shadow-inner">
+                <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-inner">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-slate-900">Created events</h3>
                     <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600">Page {Math.floor(currentIndex / eventsPerPage) + 1 || 1}</span>

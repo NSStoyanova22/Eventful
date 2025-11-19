@@ -17,20 +17,29 @@ export const authOptions: NextAuthOptions = {
         if (!credentials) return null;
         const { email, password } = credentials;
 
-        await connect();
-        const dbUser = await User.findOne({ email });
-        if (!dbUser) throw new Error("User not found");
+        try {
+          await connect();
+          const dbUser = await User.findOne({ email });
+          if (!dbUser) {
+            return null;
+          }
 
-        const valid = await bcryptjs.compare(password, dbUser.password);
-        if (!valid) throw new Error("Incorrect password");
+          const valid = await bcryptjs.compare(password, dbUser.password);
+          if (!valid) {
+            return null;
+          }
 
-        return {
-          id: dbUser._id.toString(),
-          email: dbUser.email || null,
-          name: dbUser.name || null,
-          image: dbUser.image ?? null,
-          lastName: dbUser.lastName ?? null,
-        };
+          return {
+            id: dbUser._id.toString(),
+            email: dbUser.email || null,
+            name: dbUser.name || null,
+            image: dbUser.image ?? null,
+            lastName: dbUser.lastName ?? null,
+          };
+        } catch (error) {
+          console.error("Error authorizing credentials:", error);
+          throw new Error("Unable to sign in. Please try again later.");
+        }
       },
     }),
   ],
@@ -41,6 +50,7 @@ export const authOptions: NextAuthOptions = {
    
     async jwt({ token, user }) {
       if (user) {
+        await connect();
         const dbUser = await User.findOne({ email: user.email });
         token.id = user.id;
         token.email = user.email ?? undefined;
@@ -53,6 +63,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       const userSession: any = session;
       if (userSession.user) {
+        await connect();
         const dbUser = await User.findOne({ email: userSession?.user?.email });
         userSession.user.id = token.id || "";
         userSession.user.email = token.email || null;
