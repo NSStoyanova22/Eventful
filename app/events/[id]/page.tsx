@@ -83,12 +83,12 @@ export default function EventDetails() {
 
   const handleJoin = async () => {
     if (!session?.user) {
-      alert("You must be logged in to join");
+      toast("You must be logged in to join");
       return;
     }
     const userId = (session.user as CustomSessionUser)?.id;
     if (!userId) {
-      alert("User ID not found");
+      toast("User ID not found");
       return;
     }
 
@@ -134,44 +134,119 @@ export default function EventDetails() {
   }
 
   const eventDate = event.startDate ? new Date(event.startDate) : null;
+  const formattedDate = eventDate
+    ? eventDate.toLocaleDateString("en-GB", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "TBA";
+  const formattedTime = eventDate
+    ? eventDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "TBA";
+  const heroImage =
+    (event as any)?.image ||
+    "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80";
+
   return (
     <>
-   <Navbar />
-   
-    <div className="min-h-screen bg-gray-200 flex justify-center items-center p-8">
-      
-      <div className="bg-white shadow-lg rounded-xl w-full max-w-4xl p-8">
-        <h1 className="font-bold text-3xl mb-4">{event.title}</h1>
-        <p className="text-gray-700 mb-2">
-          Created by: {event.createdByName || "Unknown"}
-        </p>
-        <p className="text-gray-700 mb-2">
-          Date: {eventDate ? eventDate.toLocaleDateString("en-GB") : "N/A"}
-        </p>
-        <p className="text-gray-700 mb-2">
-          Time:{" "}
-          {eventDate
-            ? eventDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-            : "N/A"}
-        </p>
-        <p className="text-gray-700 mb-4">Description: {event.description}</p>
-        <p className="text-gray-700 font-semibold mb-4">
-          Attending: {event.attending}
-        </p>
+      <Navbar />
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 px-4 py-12 text-white">
+        <div className="mx-auto flex max-w-5xl flex-col gap-8">
+          <section className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/40 shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
+            <div className="relative h-72 w-full">
+              <img
+                src={heroImage}
+                alt={event.title}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+              <div className="absolute bottom-6 left-6 right-6 space-y-3">
+                <p className="text-xs uppercase tracking-[0.5em] text-white/80">
+                  Eventful
+                </p>
+                <h1 className="text-4xl font-semibold">{event.title}</h1>
+                <div className="flex flex-wrap gap-3 text-sm text-white/80">
+                  <span className="rounded-full bg-white/10 px-4 py-1">
+                    {formattedDate}
+                  </span>
+                  <span className="rounded-full bg-white/10 px-4 py-1">
+                    {formattedTime}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-        <Button
-          onClick={handleJoin}
-          disabled={hasJoined || joining}
-          className={`px-4 py-2 rounded-3xl ${hasJoined
-              ? "bg-gray-500 cursor-not-allowed"
-              : "bg-indigo-700 text-white"
-            }`}
-        >
-          {hasJoined ? "Joined" : joining ? "Joining..." : "Join"}
+            <div className="grid gap-8 p-8 lg:grid-cols-[2fr_1fr]">
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                  <p className="text-sm uppercase tracking-[0.4em] text-white/60">
+                    Overview
+                  </p>
+                  <p className="mt-3 text-base text-white/80">
+                    Hosted by{" "}
+                    <span className="font-semibold text-white">
+                      {event.createdByName || "Unknown"}
+                    </span>
+                  </p>
+                  <p className="mt-4 text-lg text-white/85">
+                    {event.description}
+                  </p>
+                </div>
 
-        </Button>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/60">
+                      Attendance
+                    </p>
+                    <p className="mt-3 text-3xl font-semibold">
+                      {event.attending}
+                    </p>
+                    <p className="text-sm text-white/70">people already in</p>
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/60">
+                      Status
+                    </p>
+                    <p className="mt-3 text-lg font-semibold">
+                      {hasJoined ? "You're in" : "Seats open"}
+                    </p>
+                    <p className="text-sm text-white/70">
+                      {event.attendees?.length || 0} confirmed attendees
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+                <p className="text-sm uppercase tracking-[0.4em] text-white/60">
+                  RSVP
+                </p>
+                <h2 className="text-2xl font-semibold">
+                  {hasJoined ? "See you there!" : "Join the guest list"}
+                </h2>
+                <p className="text-sm text-white/70">
+                  {hasJoined
+                    ? "You're confirmed. Check your notifications for reminders."
+                    : "Reserve your spot to receive reminders and updates."}
+                </p>
+                <Button
+                  onClick={handleJoin}
+                  disabled={hasJoined || joining}
+                  className={`w-full rounded-full px-6 py-3 text-sm font-semibold ${
+                    hasJoined
+                      ? "bg-white/30 text-white"
+                      : "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white"
+                  }`}
+                >
+                  {hasJoined ? "Joined" : joining ? "Joining..." : "Join event"}
+                </Button>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
-     </>
+    </>
   );
 }

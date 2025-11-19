@@ -4,13 +4,11 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Post from "./post";
 import Footer from "@/components/ui/footer";
 import { DateTime } from "luxon";
-import ThemeChanger from "./themeChanger";
 import { useTranslation } from "react-i18next";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 interface Event {
   _id: string;
@@ -26,8 +24,11 @@ interface Event {
 
 export default function Dashboard() {
   const { t  } = useTranslation();
-  const router = useRouter();
   const { data: session } = useSession();
+  const profileHref =
+    (session?.user as { id?: string } | undefined)?.id
+      ? `/${(session?.user as { id?: string }).id}`
+      : "#";
   const dt = DateTime.now();
   let hourMessage;
 
@@ -98,7 +99,7 @@ export default function Dashboard() {
 
   const uploadPhoto = async (eventId: string | undefined) => {
     if (!eventId) {
-      alert("Error: No event selected.");
+      toast.error("Select an event to share photos.");
       return;
     }
 
@@ -126,7 +127,7 @@ export default function Dashboard() {
         throw new Error(`Failed to upload photo: ${errorMessage}`);
       }
 
-      alert("Photo uploaded successfully!");
+      toast.success("Photo uploaded successfully!");
       setSelectedFile(null);
 
       const refreshRes = await fetch("/api/eventCreation");
@@ -152,201 +153,234 @@ export default function Dashboard() {
         ) || []
       );
 
-      console.log("Finished events updated:", finishedEvents);
     } catch (error) {
       console.error("Error uploading photo:", error);
-      alert(`Failed to upload photo: ${error}`);
+      toast.error("Failed to upload photo.");
     } finally {
       setUploading(false);
     }
   };
   return (
-    <>
-      <div className="container mx-auto p-6">
-      
-        <h1 className="font-bold text-4xl ml-7 mb-3">
-          {hourMessage},{" "}
-          <a href="/[userId]" className="text-5xl">
-            {session?.user?.name}
-          </a>
-          !
-        </h1>
-        <div className="grid grid-cols-[2fr_1fr]">
-          <div className="grid-span-2 space-y-6">
-            {/* Top section */}
-            <div className="grid grid-cols-2">
-              {/* Attending window */}
-              <div className="w-[25rem] p-4">
-                <div className="flex gap-5 items-center">
-                  <h1 className="font-bold text-3xl ml-3 mb-3">{t("attending")}</h1>
-                  <Link href="/attending">
-                    <button className="text-blue-500 hover:underline">
-                    {t("showall")}
-                    </button>
-                  </Link>
-                </div>
-                <div className="flex gap-3 items-center">
-                  <button
-                    className="text-2xl font-bold text-slate-300 hover:text-slate-600"
-                    onClick={() =>
-                      setAttendingIndex((prev) => Math.max(0, prev - 1))
-                    }
-                    disabled={attendingIndex === 0}
-                  >
-                    &lt;
-                  </button>
-
-                  {attendingEvents.length > 0 ? (
-                    <div className="p-4 shadow rounded-xl border border-slate-300 py-5 w-[20rem]">
-                      <p className="text-sky-800 text-center font-bold text-2xl">
-                        {attendingEvents[attendingIndex].title}
-                      </p>
-                      <p className="text-sky-800 text-center font-bold">{t("in")}</p>
-                      <p className="text-sky-800 text-center font-bold text-2xl">
-                        {Math.ceil(
-                          (new Date(
-                            attendingEvents[attendingIndex].startDate
-                          ).getTime() -
-                            Date.now()) /
-                            (1000 * 60 * 60 * 24) -
-                            1
-                        )}{" "}
-                        {t("days")}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">
-                      {t("nojoined")}
-                    </p>
-                  )}
-
-                  <button
-                    className="text-2xl font-bold text-slate-300 hover:text-slate-600"
-                    onClick={() =>
-                      setAttendingIndex((prev) =>
-                        Math.min(attendingEvents.length - 1, prev + 1)
-                      )
-                    }
-                    disabled={attendingIndex >= attendingEvents.length - 1}
-                  >
-                    &gt;
-                  </button>
-                </div>
-              </div>
-
-              {/* Finished window */}
-              <div className="w-[25rem] p-4">
-                <div className="flex gap-5 items-center">
-                  <h1 className="font-bold  text-3xl ml-3 mb-3">{t("finished")}</h1>
-                  <Link href="/finished-events">
-                    <button className="text-blue-500 hover:underline">
-                    {t("showall")}
-                    </button>
-                  </Link>
-                </div>
-
-                <div className="flex gap-3 items-center">
-                  {/* Left arrow for navigation */}
-                  <button
-                    className="text-2xl font-bold text-slate-300 hover:text-slate-600"
-                    onClick={() =>
-                      setFinishedIndex((prev) => Math.max(0, prev - 1))
-                    }
-                    disabled={finishedIndex === 0}
-                  >
-                    &lt;
-                  </button>
-
-                  {finishedEvents.length > 0 ? (
-                    <div className="p-4 shadow rounded-xl border border-slate-300 py-5 w-[20rem] flex flex-col items-center">
-                      <p className="text-sky-800 text-center font-bold text-xl">
-                      {t("photosq")} 
-                      </p>
-                      <p className="text-sky-800 text-center font-bold text-2xl mb-2">
-                        {finishedEvents[finishedIndex].title}?
-                      </p>
-
-                      {/* File Input for Upload */}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="pl-5 font-bold text-center text-sm px-1 py-1 rounded transition cursor-pointer inline-block"
-                      />
-
-                      {/* Upload Button */}
-                      <button
-                        className={`bg-slate-200 font-bold text-center text-sm px-4 p-1 rounded  
-          hover:bg-slate-700 hover:text-sky-200 transition ${
-            uploading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-                        onClick={() =>
-                          uploadPhoto(finishedEvents[finishedIndex]._id)
-                        }
-                        disabled={uploading}
-                      >
-                        {uploading ? "Uploading..." : "Share!"}
-                      </button>
-
-                      {/* Status Message */}
-                      {uploading && (
-                        <p className="text-gray-500 text-xs mt-2">
-                          {t("upload")}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">
-                      {t("nofinished")}
-                    </p>
-                  )}
-
-                  {/* Right arrow for navigation */}
-                  <button
-                    className="text-2xl font-bold text-slate-300 hover:text-slate-600"
-                    onClick={() =>
-                      setFinishedIndex((prev) =>
-                        Math.min(finishedEvents.length - 1, prev + 1)
-                      )
-                    }
-                    disabled={finishedIndex >= finishedEvents.length - 1}
-                  >
-                    &gt;
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Explore section */}
-            <div className="p-4">
-              <h1 className="font-bold  text-3xl ml-3 mb-3">{t("explore")}</h1>
-              {filteredEvents.map((post) => (
-                <div key={post._id}>
-                  <Post post={post} />
-                  <a
-                    href={`/events/${post._id.toString()}`}
-                    className="text-blue-500 hover:underline"
-                  ></a>
-                </div>
-              ))}
-            </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-10 text-white">
+      <section className="rounded-[32px] border border-white/10 bg-gradient-to-br from-blue-600/80 via-indigo-700/80 to-slate-900/80 px-8 py-10 shadow-[0_40px_120px_rgba(30,64,175,0.35)]">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-3">
+            <p className="text-sm uppercase tracking-[0.6em] text-white/70">
+              {hourMessage}
+            </p>
+            <h1 className="text-4xl font-semibold leading-tight md:text-5xl">
+              {session?.user?.name || "Creator"}, ready to craft your next event?
+            </h1>
+            <p className="text-sm text-white/70 md:text-base">
+              Track attending guests, share memories from finished events, and discover trending experiences tailored for you.
+            </p>
           </div>
-
-          {/* Hot section */}
-          <div className="p-4">
-            <h1 className="font-bold text-3xl ml-3 mb-3">{t("hot")}</h1>
-            {[...filteredEvents]
-              .sort(
-                (a, b) =>
-                  (b.attendees?.length || 0) - (a.attendees?.length || 0)
-              )
-              .map((post) => (
-                <Post key={post._id} post={post} />
-              ))}
+          <div className="flex flex-col gap-3 text-sm">
+            <Link
+              href="/created-events"
+              className="rounded-full bg-white px-6 py-3 text-center font-semibold text-slate-900 shadow-lg shadow-blue-900/40 transition hover:-translate-y-0.5"
+            >
+              Manage my events
+            </Link>
+            <Link
+              href={profileHref}
+              className="rounded-full border border-white/30 px-6 py-3 text-center font-semibold text-white/90 transition hover:bg-white/10"
+            >
+              View profile
+            </Link>
           </div>
         </div>
-        <Footer />
+
+        <div className="mt-8 grid gap-4 text-slate-900 md:grid-cols-3">
+          {[
+            {
+              label: t("attending"),
+              value: attendingEvents.length,
+              tone: "bg-white",
+            },
+            {
+              label: t("finished"),
+              value: finishedEvents.length,
+              tone: "bg-white/80",
+            },
+            {
+              label: t("explore"),
+              value: filteredEvents.length,
+              tone: "bg-white/60",
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className={`${stat.tone} rounded-2xl px-4 py-3 text-center shadow-lg shadow-slate-900/10`}
+            >
+              <p className="text-xs uppercase tracking-[0.4em] text-slate-500">
+                {stat.label}
+              </p>
+              <p className="text-3xl font-semibold text-slate-900">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.4em] text-blue-200/80">
+                {t("attending")}
+              </p>
+              <h2 className="text-2xl font-semibold">Your next stop</h2>
+            </div>
+            <Link href="/attending" className="text-sm font-semibold text-blue-200 hover:text-white">
+              {t("showall")}
+            </Link>
+          </div>
+
+          {attendingEvents.length > 0 ? (
+            <div className="rounded-3xl border border-white/20 bg-gradient-to-br from-blue-700/40 to-purple-700/30 p-6 shadow-inner shadow-blue-900/20">
+              <div className="mb-4 flex items-center justify-between text-sm text-white/70">
+                <button
+                  onClick={() => setAttendingIndex((prev) => Math.max(0, prev - 1))}
+                  disabled={attendingIndex === 0}
+                  className="rounded-full border border-white/30 px-3 py-1 font-semibold disabled:opacity-30"
+                >
+                  &lt;
+                </button>
+                <span>
+                  {attendingIndex + 1}/{attendingEvents.length}
+                </span>
+                <button
+                  onClick={() =>
+                    setAttendingIndex((prev) =>
+                      Math.min(attendingEvents.length - 1, prev + 1)
+                    )
+                  }
+                  disabled={attendingIndex >= attendingEvents.length - 1}
+                  className="rounded-full border border-white/30 px-3 py-1 font-semibold disabled:opacity-30"
+                >
+                  &gt;
+                </button>
+              </div>
+              <h3 className="text-3xl font-semibold">
+                {attendingEvents[attendingIndex].title}
+              </h3>
+              <p className="mt-2 text-sm text-white/70">
+                {t("in")}{" "}
+                {Math.max(
+                  0,
+                  Math.ceil(
+                    (new Date(attendingEvents[attendingIndex].startDate).getTime() -
+                      Date.now()) /
+                      (1000 * 60 * 60 * 24)
+                  )
+                )}{" "}
+                {t("days")}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-200/70">{t("nojoined")}</p>
+          )}
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
+                {t("finished")}
+              </p>
+              <h2 className="text-2xl font-semibold">Share highlights</h2>
+            </div>
+            <Link href="/finished-events" className="text-sm font-semibold text-blue-600">
+              {t("showall")}
+            </Link>
+          </div>
+
+          {finishedEvents.length > 0 ? (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500">{t("photosq")}</p>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-lg font-semibold text-slate-900">
+                  {finishedEvents[finishedIndex]?.title}
+                </p>
+                <div className="mt-3 space-y-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                  />
+                  <button
+                    onClick={() => uploadPhoto(finishedEvents[finishedIndex]._id)}
+                    disabled={uploading}
+                    className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/30 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {uploading ? t("upload") : "Share memory"}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm text-slate-500">
+                <button
+                  onClick={() => setFinishedIndex((prev) => Math.max(0, prev - 1))}
+                  disabled={finishedIndex === 0}
+                  className="rounded-full border border-slate-200 px-3 py-1 font-semibold disabled:opacity-40"
+                >
+                  &lt;
+                </button>
+                <span>
+                  {finishedIndex + 1}/{finishedEvents.length}
+                </span>
+                <button
+                  onClick={() =>
+                    setFinishedIndex((prev) =>
+                      Math.min(finishedEvents.length - 1, prev + 1)
+                    )
+                  }
+                  disabled={finishedIndex >= finishedEvents.length - 1}
+                  className="rounded-full border border-slate-200 px-3 py-1 font-semibold disabled:opacity-40"
+                >
+                  &gt;
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">{t("nofinished")}</p>
+          )}
+        </section>
       </div>
-    </>
+
+      <section className="rounded-[32px] border border-white/10 bg-white/5 p-8 text-white backdrop-blur-xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-3xl font-semibold">{t("explore")}</h2>
+        </div>
+        {filteredEvents.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            {filteredEvents.map((post) => (
+              <Post key={post._id} post={post} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-200/70">No public events available right now.</p>
+        )}
+      </section>
+
+      <section className="rounded-[32px] border border-white/10 bg-white p-8 text-slate-900 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-3xl font-semibold text-slate-900">{t("hot")}</h2>
+          <p className="text-sm text-slate-500">Most popular this week</p>
+        </div>
+        <div className="space-y-6">
+          {[...filteredEvents]
+            .sort(
+              (a, b) =>
+                (b.attendees?.length || 0) - (a.attendees?.length || 0)
+            )
+            .slice(0, 4)
+            .map((post) => (
+              <Post key={post._id} post={post} />
+            ))}
+        </div>
+      </section>
+      <Footer />
+    </div>
   );
 }

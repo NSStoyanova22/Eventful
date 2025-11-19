@@ -1,32 +1,26 @@
 import { toast } from "sonner";
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogClose,
-  DialogFooter,
-  DialogHeader,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useSession } from "next-auth/react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CalendarPlus, ImagePlus } from "lucide-react";
 
 export function CreateButtonNav() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="bg-slate-400 hover:bg-slate-600 flex items-center justify-center mr-[3rem] rounded h-8 w-[3.6rem]">
-          <div className="relative w-10 h-10 flex items-center justify-center">
-            <div className="absolute w-4 h-[0.3em] bg-white rounded"></div>
-            <div className="w-[0.3rem] h-4 absolute bg-white rounded"></div>
-          </div>
+        <button className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/40 transition hover:-translate-y-0.5">
+          <span className="rounded-full bg-white/20 p-1.5">
+            <CalendarPlus className="h-4 w-4" />
+          </span>
+          Create
         </button>
       </DialogTrigger>
-      <DialogContent>
-        {/* Creating a new event by default */}
+      <DialogContent className="max-w-3xl rounded-[32px] border border-white/10 bg-slate-950/80 text-white shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
         <CreateEvent />
       </DialogContent>
     </Dialog>
@@ -37,15 +31,12 @@ export function CreateButtonSide() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="bg-slate-400 hover:bg-slate-600 flex items-center justify-center  rounded h-9 w-[5rem]">
-          <div className="relative w-10 h-10 flex items-center justify-center">
-            <div className="absolute w-4 h-[0.3em] bg-white rounded"></div>
-            <div className="w-[0.3rem] h-4 absolute bg-white rounded"></div>
-          </div>
+        <button className="group inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">
+          <CalendarPlus className="h-4 w-4" />
+          New event
         </button>
       </DialogTrigger>
-      <DialogContent>
-        {/* Creating a new event by default */}
+      <DialogContent className="max-w-3xl rounded-[32px] border border-white/10 bg-slate-950/80 text-white shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
         <CreateEvent />
       </DialogContent>
     </Dialog>
@@ -124,11 +115,11 @@ export default function CreateEvent({
 
       const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
       if (!allowedTypes.includes(file.type)) {
-        alert("Only JPG, PNG, and WebP images are allowed.");
+        toast.error("Only JPG, PNG, and WebP images are allowed.");
         return;
       }
       if (file.size > 2 * 1024 * 1024) {
-        alert("Image must be smaller than 2MB.");
+        toast.error("Image must be smaller than 2MB.");
         return;
       }
       const reader = new FileReader();
@@ -137,7 +128,7 @@ export default function CreateEvent({
         setPostImage(file);
       };
       reader.onerror = () => {
-        alert("Failed to read the selected image.");
+        toast.error("Failed to read the selected image.");
       };
       reader.readAsDataURL(file);
     }
@@ -147,7 +138,7 @@ export default function CreateEvent({
     e.preventDefault();
 
     if (!session?.user) {
-      alert("You must be logged in to create or edit an event.");
+      toast.error("You must be logged in to create or edit an event.");
       return;
     }
 
@@ -225,121 +216,169 @@ export default function CreateEvent({
       setImageBase64(null);
     } catch (error: any) {
       console.error("Error creating/updating event:", error);
-      alert(`Something went wrong: ${error.message}`);
+      toast.error(`Something went wrong: ${error.message}`);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-lg mx-auto rounded-md ">
-      <div>
-        <input
-          type="text"
-          placeholder="Title"
-          className="w-full border-b pb-2 text-lg font-semibold focus:outline-none"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <p className="text-gray-500 text-sm mt-5">
-          This is a {isEventPublic ? "public" : "private"} event
-        </p>
-      </div>
+    <form
+  onSubmit={handleSubmit} // handle form submission
+  className="mx-auto max-w-2xl space-y-5 rounded-[28px] border border-white/10 bg-slate-900/20 p-6 text-white shadow-inner shadow-blue-900/30"
+>
+  <div className="space-y-2 text-center">
+    <p className="text-xs uppercase tracking-[0.5em] text-blue-200/70">
+      {eventToEdit ? "Update event" : "New event"} {/* show update or new based on editing state */}
+    </p>
+    <h2 className="text-3xl font-semibold">
+      {eventToEdit ? "Refresh the experience" : "Design a new moment"} {/* main title */}
+    </h2>
+    <p className="text-sm text-white/70">
+      This is a {isEventPublic ? "public" : "private"} event {/* display event privacy */}
+    </p>
+  </div>
 
-      <textarea
-        placeholder="Description"
-        className="w-full h-20 border rounded-md p-2 mt-2"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
+  <div className="space-y-4">
+    <input
+      type="text"
+      placeholder="Event title"
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+      value={title} // bind input value to title state
+      onChange={(e) => setTitle(e.target.value)} // update title state on change
+    />
+    <textarea
+      placeholder="Tell guests what makes this event special..."
+      className="min-h-[120px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+      value={description} // bind input value to description state
+      onChange={(e) => setDescription(e.target.value)} // update description state on change
+    />
+  </div>
 
+  <div className="grid gap-4 md:grid-cols-2">
+    <div className="space-y-2">
+      <label className="text-xs uppercase tracking-[0.4em] text-white/50">
+        Start date
+      </label>
       <input
         type="date"
-        className="w-full border rounded-md p-2 mt-2"
-        value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
+        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        value={startDate} // bind start date
+        onChange={(e) => setStartDate(e.target.value)} // update start date on change
       />
-
+    </div>
+    <div className="space-y-2">
+      <label className="text-xs uppercase tracking-[0.4em] text-white/50">
+        End date
+      </label>
       <input
         type="date"
-        className="w-full border rounded-md p-2 mt-2"
-        value={endDate}
-        onChange={(e) => setEndDate(e.target.value)}
+        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        value={endDate} // bind end date
+        onChange={(e) => setEndDate(e.target.value)} // update end date on change
       />
+    </div>
+  </div>
+    <div className="flex flex-col md:flex-row gap-4 items-end">
+  {/* start time */}
+  <div className="flex-1 space-y-2">
+    <label className="text-xs uppercase tracking-[0.4em] text-white/50">
+      Start time
+    </label>
+    <input
+      type="time"
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+      value={startTime}
+      onChange={(e) => setStartTime(e.target.value)}
+    />
+  </div>
 
+  {/* guest limit toggle */}
+  <div className="flex-1 flex flex-col space-y-1">
+    <label className="inline-flex items-center gap-2 text-sm">
       <input
-        type="time"
-        className="w-full border rounded-md p-2 mt-2 text-gray-700"
-        value={startTime}
-        onChange={(e) => setStartTime(e.target.value)}
+        type="checkbox"
+        className="h-4 w-4 rounded border-white/30 bg-transparent text-blue-500 focus:ring-blue-500"
+        checked={isPeopleLimitChecked}
+        onChange={handleGuestChange}
       />
+      Limit
+    </label>
+    <p className="text-sm font-semibold text-white">
+      {isPeopleLimitChecked ? `Max ${guestLimit || 0} guests` : "Unlimited guests"}
+    </p>
+  </div>
 
-      {imageBase64 && (
+  {/* conditional guest number input */}
+  {isPeopleLimitChecked && (
+    <div className="flex-1 space-y-2">
+      <label className="text-xs uppercase tracking-[0.4em] text-white/50">
+        Number of guests
+      </label>
+      <input
+        type="number"
+        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        value={guestLimit}
+        onChange={(e) => setGuestLimit(Number(e.target.value))}
+      />
+    </div>
+  )}
+</div>
+  <div className="space-y-3 rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-center">
+    {imageBase64 ? (
+      <div className="space-y-3">
         <img
           src={imageBase64}
           alt="Selected"
-          className="w-20 h-20 object-cover rounded mt-2"
+          className="mx-auto h-40 w-full rounded-2xl object-cover"
         />
-      )}
-
-
-      <div className="border rounded-md p-2 cursor-pointer text-gray-500 relative mt-2">
-        <span>{imageBase64 == null ? "Add image..." : "Change image..."}</span>
-
-        <input
-          type="file"
-          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-          onChange={handleImageChange}
-        />
+        <p className="text-sm text-white/70">Change cover image</p> {/* show current image */}
       </div>
-
-      <div className="flex items-center gap-2 mt-2">
-        <input
-          type="checkbox"
-          id="peopleLimit"
-          className="w-4 h-4 border rounded-md"
-          checked={isPeopleLimitChecked}
-          onChange={handleGuestChange}
-        />
-        <label htmlFor="peopleLimit" className="text-gray-700">
-          Guest limit
-        </label>
-        {isPeopleLimitChecked && (
-          <input
-            type="number"
-            className="w-16 border rounded-md p-1 text-center text-slate-700"
-            value={guestLimit}
-            onChange={(e) => setGuestLimit(Number(e.target.value))}
-          />
-        )}
+    ) : (
+      <div className="flex flex-col items-center gap-3 text-white/70">
+        <ImagePlus className="h-8 w-8" /> {/* placeholder icon */}
+        <p className="text-sm">Upload a hero image</p> {/* prompt upload */}
       </div>
+    )}
+    <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">
+      <input type="file" className="hidden" onChange={handleImageChange} /> {/* file input */}
+      Choose file
+    </label>
+  </div>
 
-      <div className="flex items-center gap-2 mt-2">
-        <input
-          type="checkbox"
-          id="public"
-          className="w-4 h-4 border rounded-md"
-          checked={isEventPublic}
-          onChange={handlePrivacyChange}
-        />
-        <label htmlFor="public" className="text-gray-700">
-          Public
-        </label>
-      </div>
+  <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+    <div>
+      <p className="text-sm font-semibold text-white">Public event</p>
+      <p className="text-xs text-white/60">
+        {isEventPublic
+          ? "Visible to all Eventful members"
+          : "Only invited guests see this"} {/* show privacy info */}
+      </p>
+    </div>
+    <label className="inline-flex items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        className="h-4 w-4 rounded border-white/30 bg-transparent text-blue-500 focus:ring-blue-500"
+        checked={isEventPublic} // bind public/private state
+        onChange={handlePrivacyChange} // toggle public/private
+      />
+      Public
+    </label>
+  </div>
 
-      <div className="flex justify-end mt-4">
-        <button
-          type="submit"
-          className="bg-black text-white rounded-md px-4 py-2"
-          disabled={loading}
-        >
-          {loading
-            ? "Submitting..."
-            : eventToEdit
-            ? "Update Event"
-            : "Done"}
-        </button>
-      </div>
-    </form>
+  <div className="flex items-center justify-end">
+    <button
+      type="submit"
+      className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+      disabled={loading} // disable while submitting
+    >
+      {loading
+        ? "Saving..."
+        : eventToEdit
+        ? "Update event"
+        : "Create event"} {/* button text changes based on state */}
+    </button>
+  </div>
+</form>
   );
 }

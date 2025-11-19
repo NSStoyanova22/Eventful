@@ -160,6 +160,10 @@ export default function Navbar() {
   let firstName = session?.user?.name;
 
   const [user, setUser] = useState<any>(null);
+  const profileHref =
+    (session?.user as { id?: string } | undefined)?.id
+      ? `/${(session?.user as { id?: string }).id}`
+      : "/";
   useEffect(() => {
     const fetchUserByEmail = async () => {
       try {
@@ -239,12 +243,12 @@ export default function Navbar() {
                             </h2>
 
                             {/* View Profile link */}
-                            <a
-                              href="/[userId]"
+                            <Link
+                              href={profileHref}
                               className="text-sky-700 hover:underline text-sm"
                             >
                               {t("viewprofile")}
-                            </a>
+                            </Link>
                           </div>
                         </li>
                         <li className="text-gray-600 font-bold w-full text-center">
@@ -341,11 +345,11 @@ export default function Navbar() {
                     </NavigationMenuItem>
                     {/* avatar */}
                     <NavigationMenuItem className=" flex  justify-end">
-                      <a href="/[userId]"><Avatar className="ml-8 flex items-center  justify-end">
+                      <Link href={profileHref}><Avatar className="ml-8 flex items-center  justify-end">
                         <AvatarImage src={user?.image ? user?.image : "https://cdn.pfps.gg/pfps/2301-default-2.png"}></AvatarImage>
                         <AvatarFallback>{firstName?.at(0)?.toUpperCase()}</AvatarFallback>
                         {/* this here ^ are the initials of the person which appear when the avatar does not load */}
-                      </Avatar></a>
+                      </Avatar></Link>
                     </NavigationMenuItem>
                   </div>
                 </>

@@ -2,13 +2,7 @@ import { connect } from "@/app/config/dbConfig";
 import Event from "@/app/models/event";
 import User from "@/app/models/user";
 import { NextRequest, NextResponse } from "next/server";
-import { Configuration, OpenAIApi } from "openai";
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-  organization: process.env.OPENAI_ORG_ID,
-});
-const openai = new OpenAIApi(configuration);
 
 export async function POST(req: NextRequest) {
   await connect();
@@ -37,11 +31,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const moderationResp = await openai.createModeration({
-      input: description,
-    });
-    const flaggedByAI = moderationResp.data.results[0].flagged;
-    const moderationStatus = flaggedByAI ? "flagged" : "approved";
+    
+    const moderationStatus = "approved";
 
     let imageUrl = "";
     const imageBase64 = formData.get("imageBase64");
@@ -76,7 +67,6 @@ export async function POST(req: NextRequest) {
       success: true,
       eventId: newEvent._id,
       imageUrl,
-      flaggedByAI,
     });
   } catch (error: any) {
     console.error("Error creating event:", error);
@@ -93,9 +83,11 @@ export async function GET(req: NextRequest) {
     const eventsWithUserDetails = await Promise.all(
       events.map(async (event) => {
         const user = await User.findById(event.createdBy).select("name image");
+        const current = await User.findById(user._id);
+        console.log("current: ", current);
         return {
           ...event.toObject(),
-          createdByName: user ? user.name : "Unknown",
+          createdByName: current.username,
           createdByImage: user
             ? user.image
             : "https://cdn.pfps.gg/pfps/2301-default-2.png",

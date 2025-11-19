@@ -5,10 +5,8 @@ import { DateTime } from "luxon";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { CalendarDays } from "lucide-react";
-import ThemeChanger from "./themeChanger";
+import { CalendarDays, Clock, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Avatar, AvatarImage} from "@radix-ui/react-avatar";
 interface PostProps {
   post: {
     _id: string;
@@ -32,7 +30,7 @@ interface Comment {
   createdAt: string;
 }
 
-export default function Post({ post }: PostProps) {
+export default function Post({ post, hideComment }: PostProps) {
   const { t  } = useTranslation();
   const dt = DateTime.now();
   const { data: session } = useSession();
@@ -44,7 +42,6 @@ export default function Post({ post }: PostProps) {
 
   useEffect(() => {
     const fetchComments = async () => {
-    
       try {
         const res = await fetch(`/api/events/${post._id}/comments`);
         if (!res.ok) throw new Error("Failed to fetch comments");
@@ -163,85 +160,138 @@ export default function Post({ post }: PostProps) {
   };
   
 
+  const startDate = DateTime.fromISO(post.startDate);
+  const readableDate = startDate.isValid
+    ? startDate.toLocaleString(DateTime.DATE_MED)
+    : "";
+  const readableTime = startDate.isValid
+    ? startDate.toLocaleString(DateTime.TIME_SIMPLE)
+    : "";
+
   return (
-    <div className="border border-gray-300 shadow-md rounded-lg p-4 mb-4">
-      {post.image && (
-        <img
-          src={post.image}
-          alt={post.title}
-          className="w-full h-60 object-cover rounded-lg mb-2"
-        />
-      )}
-      <p className="text-slate-600 font-bold text-xl">
-        {post.title.charAt(0).toUpperCase() + post.title.slice(1)} {t("in")} {calcTimeLeft()} | {post.attending ?? "0"} {t("participants")}
-      </p>
-      <p className="text-slate-500 mt-2">{post.description}</p>
-
-      <div className="flex items-center justify-between mt-2">
-        <div className="flex items-center">
-          <img
-            src={post.createdByImage || "https://cdn.pfps.gg/pfps/2301-default-2.png"}
-            alt="Created By"
-            className="w-10 h-10 rounded-full object-cover mr-3"
-          />
-          <p className="text-slate-600 font-bold">{post.createdByName}</p>
+    <div className="group relative mb-6 overflow-hidden rounded-[26px] border border-white/10 bg-white/95 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.15)] transition hover:-translate-y-1 hover:shadow-[0_35px_90px_rgba(15,23,42,0.25)]">
+      <div className="space-y-5">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-100/40 bg-slate-900/5">
+          {post.image ? (
+            <div className="relative">
+              <img
+                src={post.image}
+                alt={post.title}
+                className="h-56 w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+            </div>
+          ) : (
+            <div className="flex h-56 w-full flex-col items-center justify-center bg-gradient-to-br from-blue-600/60 to-purple-600/60 text-white">
+              <CalendarDays className="h-10 w-10 opacity-80" />
+              <p className="mt-2 text-sm uppercase tracking-[0.4em]">
+                Eventful
+              </p>
+            </div>
+          )}
+          <div className="absolute bottom-4 left-4 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-white/20 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white backdrop-blur">
+              {calcTimeLeft()}
+            </span>
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80 backdrop-blur">
+              {readableDate}
+            </span>
+          </div>
         </div>
 
-        <Link href={`/events/${post._id.toString()}`}>
-          <button className="bg-sky-700 text-white font-semibold py-2 px-4 rounded-md hover:bg-sky-800">
-          {t("moreinfo")}
-          </button>
-        </Link>
-      </div>
-
-      <button
-        className="mt-3 text-sky-700 font-semibold hover:underline"
-        onClick={() => setShowComments(!showComments)}
-      >
-        {showComments ? t("closecomment") : t("writecomment")} ({comments.length})
-      </button>
-
-      {showComments && (
-        <div className="mt-3 border-t border-gray-300 pt-3">
-          <div className="max-h-40 overflow-y-auto bg-gray-100 p-3 rounded-md">
-            {comments.length > 0 ? (
-              comments.map((comment) => (
-                <div key={comment._id} className="flex items-start space-x-3 border-b py-2">
-                 
-                  
-                  <img
-                    src={comment.userImage}
-                    alt="User"
-                    className="w-10 h-10 rounded-full object-cover mr-3"
-                  />
-                  <div>
-                    <p className="text-sm font-bold">{comment.userName}</p>
-                    <p className="text-slate-600 text-sm">{comment.text}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm">{t("nocomment") }</p>
-            )}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-2xl font-semibold text-slate-900">
+              {post.title.charAt(0).toUpperCase() + post.title.slice(1)}
+            </h2>
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              <Users className="h-4 w-4" />
+              {post.attending ?? 0} {t("participants")}
+            </span>
           </div>
+          <p className="text-slate-500">{post.description}</p>
+          <div className="flex flex-wrap gap-3 text-sm text-slate-500">
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+              <CalendarDays className="h-4 w-4 text-blue-600" />
+              {readableDate}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+              <Clock className="h-4 w-4 text-purple-600" />
+              {readableTime}
+            </div>
+          </div>
+        </div>
 
-          <div className="mt-2 flex items-center">
-            <input
-              type="text"
-              placeholder={t("writecomment")  }
-              className="border rounded-md px-3 py-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <img
+              src={post.createdByImage || "https://cdn.pfps.gg/pfps/2301-default-2.png"}
+              alt="Created By"
+              className="h-12 w-12 rounded-full object-cover shadow-inner"
             />
-            <button
-              className="ml-2 bg-sky-700 text-white px-3 py-1 rounded-md hover:bg-sky-800"
-              onClick={handleAddComment}
-            >
-              {t("post")}
-            </button>
+            <div>
+              <p className="text-base font-semibold text-slate-900">
+                {post.createdByName || "Eventful Host"}
+              </p>
+            </div>
           </div>
+          <Link href={`/events/${post._id.toString()}`}>
+            <button className="rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5">
+              {t("moreinfo")}
+            </button>
+          </Link>
         </div>
-      )}
+
+        {!hideComment && (
+          <>
+            <button
+              className="mt-2 text-sm font-semibold text-blue-600 hover:text-blue-500"
+              onClick={() => setShowComments(!showComments)}
+            >
+              {showComments ? t("closecomment") : t("writecomment")} ({comments.length})
+            </button>
+
+            {showComments && (
+              <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                <div className="max-h-40 overflow-y-auto space-y-3">
+                  {comments.length > 0 ? (
+                    comments.map((comment) => (
+                      <div key={comment._id} className="flex items-start gap-3 rounded-2xl bg-white p-3 shadow-sm">
+                        <img
+                          src={comment.userImage}
+                          alt="User"
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{comment.userName}</p>
+                          <p className="text-sm text-slate-600">{comment.text}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">{t("nocomment")}</p>
+                  )}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder={t("writecomment")}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                  />
+                  <button
+                    className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-slate-800"
+                    onClick={handleAddComment}
+                  >
+                    {t("post")}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
