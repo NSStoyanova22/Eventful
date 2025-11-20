@@ -23,6 +23,15 @@ interface Event {
   attendees?: string[];
 }
 
+interface Comment {
+  _id: string;
+  userId: string;
+  userName: string;
+  userImage: string;
+  text: string;
+  createdAt: string;
+}
+
 interface Attendee {
   _id: string;
   name?: string;
@@ -51,6 +60,9 @@ export default function EventDetails() {
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [attendeeDetails, setAttendeeDetails] = useState<Attendee[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [addingComment, setAddingComment] = useState(false);
 
   const [hasJoined, setHasJoined] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(() => {
@@ -97,6 +109,22 @@ export default function EventDetails() {
       fetchEventData();
     }
   }, [id, session]);
+
+  useEffect(() => {
+    // load comment thread for this event
+    const fetchComments = async () => {
+      if (!id) return;
+      try {
+        const response = await axios.get(`/api/events/${id}/comments`);
+        setComments(response.data?.comments ?? []);
+      } catch (fetchError) {
+        console.error("Error fetching comments:", fetchError);
+        setComments([]);
+      }
+    };
+
+    fetchComments();
+  }, [id]);
 
   // normalize creator id for host comparisons
   const creatorId =
@@ -179,6 +207,56 @@ export default function EventDetails() {
       console.error("Error joining event:", error);
     } finally {
       setJoining(false);
+    }
+  };
+
+  // push a new comment to the thread
+  const handleAddComment = async () => {
+    if (!session?.user) {
+      toast("You must be logged in to comment");
+      return;
+    }
+    if (!newComment.trim()) {
+      toast("Write something before sending");
+      return;
+    }
+
+    const userId = (session.user as CustomSessionUser)?.id;
+    if (!userId) {
+      toast("User information missing");
+      return;
+    }
+
+    const displayName =
+      [user?.name, user?.lastName].filter(Boolean).join(" ").trim() ||
+      user?.username ||
+      session.user.name ||
+      "Guest";
+
+    const userImage =
+      user?.image ||
+      (session.user as CustomSessionUser)?.image ||
+      "https://cdn.pfps.gg/pfps/2301-default-2.png";
+
+    setAddingComment(true);
+    try {
+      const response = await axios.post(`/api/events/${id}/comments`, {
+        text: newComment.trim(),
+        userId,
+        userName: displayName,
+        userImage,
+      });
+      if (response.status === 200 && response.data?.comment) {
+        setComments((prev) => [...prev, response.data.comment]);
+        setNewComment("");
+      } else {
+        toast("Unable to add comment");
+      }
+    } catch (commentError) {
+      console.error("Error adding comment:", commentError);
+      toast("Error adding comment");
+    } finally {
+      setAddingComment(false);
     }
   };
 
@@ -346,6 +424,82 @@ export default function EventDetails() {
                  ) }
               </div>
               
+            </div>
+          </section>
+          <section className="rounded-[32px] border border-white/10 bg-slate-900/40 p-8 shadow-[0_25px_90px_rgba(15,23,42,0.35)]">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.5em] text-white/60">
+                  Conversation
+                </p>
+                <h2 className="text-2xl font-semibold text-white">
+                  Comments ({comments.length})
+                </h2>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {comments.length === 0 ? (
+                <p className="text-sm text-white/60">
+                  Be the first to share your thoughts about this event.
+                </p>
+              ) : (
+                comments.map((comment) => (
+                  <div
+                    key={comment._id}
+                    className="flex gap-4 rounded-3xl border border-white/10 bg-white/5 p-4"
+                  >
+                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border border-white/10">
+                      <img
+                        src={
+                          comment.userImage ||
+                          "https://cdn.pfps.gg/pfps/2301-default-2.png"
+                        }
+                        alt={comment.userName}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 text-sm text-white/70">
+                        <p className="font-semibold text-white">
+                          {comment.userName}
+                        </p>
+                        <span className="text-xs text-white/50">
+                          {new Date(comment.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-white/80">{comment.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-5">
+              {session?.user ? (
+                <>
+                  <p className="text-sm uppercase tracking-[0.4em] text-white/60">
+                    Add a comment
+                  </p>
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Share details, plans, or tips for fellow attendees..."
+                    className="mt-3 h-28 w-full rounded-2xl border border-white/10 bg-slate-900/60 p-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
+                  />
+                  <Button
+                    onClick={handleAddComment}
+                    disabled={addingComment}
+                    className="mt-3 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-2 text-sm font-semibold text-white"
+                  >
+                    {addingComment ? "Posting..." : "Post comment"}
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-white/70">
+                  Log in to join the conversation.
+                </p>
+              )}
             </div>
           </section>
         </div>
