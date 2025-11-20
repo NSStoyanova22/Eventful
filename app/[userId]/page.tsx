@@ -635,16 +635,24 @@ export default function UserProfile() {
                     <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600">Page {Math.floor(currentIndex / eventsPerPage) + 1 || 1}</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <button onClick={prevPage} disabled={currentIndex === 0} className={`rounded-full border px-3 py-2 text-lg font-bold transition ${currentIndex === 0 ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'}`} >&lt;</button>
-                    <div className="flex flex-1 flex-wrap justify-center gap-4">
-                      {paginatedEvents.slice().reverse().map((post) => (
-                        <div key={post._id} className="w-full md:w-[48%]">
-                          <ProfilePost post={post} />
-                        </div>
-                      ))}
+                    {paginatedEvents.length > 0 ? (
+                    <>
+                      <button onClick={prevPage} disabled={currentIndex === 0} className={`rounded-full border px-3 py-2 text-lg font-bold transition ${currentIndex === 0 ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'}`} >&lt;</button>
+                      <div className="flex flex-1 flex-wrap justify-center gap-4">
+                        {paginatedEvents.slice().reverse().map((post) => (
+                          <div key={post._id} className="w-full md:w-[48%]">
+                            <ProfilePost post={post} />
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={nextPage} disabled={currentIndex + eventsPerPage >= filteredEvents.length} className={`rounded-full border px-3 py-2 text-lg font-bold transition ${currentIndex + eventsPerPage >= filteredEvents.length ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'}`}>&gt;</button>
+                    </>
+                       ) : (
+                      <p className="text-slate-500">No created events yet.</p>
+                    )}
+
                     </div>
-                    <button onClick={nextPage} disabled={currentIndex + eventsPerPage >= filteredEvents.length} className={`rounded-full border px-3 py-2 text-lg font-bold transition ${currentIndex + eventsPerPage >= filteredEvents.length ? 'border-transparent text-slate-300' : 'border-slate-200 text-slate-600 hover:bg-white'}`}>&gt;</button>
-                  </div>
+                   
                 </div>
 
                 {/*Attending Events Section */}

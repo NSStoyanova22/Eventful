@@ -5,19 +5,31 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
+import { getServerSession } from "next-auth";
 import { toast } from "sonner";
 import { CalendarDays } from "lucide-react";
 import Navbar from "@/components/ui/navigation-menu";
+import { useCurrentUser } from "@/app/api/useCurrentUser/route";
 
 
 interface Event {
   _id: string;
   title: string;
+  createdBy?: string;
   createdByName?: string;
   startDate: string;
   description: string;
   attending: number;
   attendees?: string[];
+}
+
+interface Attendee {
+  _id: string;
+  name?: string;
+  lastName?: string;
+  username?: string;
+  email?: string;
+  image?: string;
 }
 
 interface CustomSessionUser {
@@ -38,6 +50,8 @@ export default function EventDetails() {
   const [event, setEvent] = useState<Event | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [attendeeDetails, setAttendeeDetails] = useState<Attendee[]>([]);
+
   const [hasJoined, setHasJoined] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(() => {
     const savedNotifications = localStorage.getItem("notifications");
@@ -47,8 +61,11 @@ export default function EventDetails() {
   const storeNotificationsToLocalStorage = (notifications: Notification[]) => {
     localStorage.setItem("notifications", JSON.stringify(notifications));
   };
+  // hydrate client session details with richer db data
+  const { user } = useCurrentUser();
 
   useEffect(() => {
+    // fetch event basics from the cached event list
     const fetchEventData = async () => {
       try {
         console.log("Fetching all events from /api/eventCreation...");
@@ -81,6 +98,46 @@ export default function EventDetails() {
     }
   }, [id, session]);
 
+  // normalize creator id for host comparisons
+  const creatorId =
+    typeof (event as any)?.createdBy === "string"
+      ? (event as any)?.createdBy
+      : (event as any)?.createdBy?._id?.toString?.() ??
+        (event as any)?.createdBy?.toString?.();
+
+  // determine if logged user owns the event
+  const isHost = Boolean(
+    event &&
+      user &&
+      (event.createdByName === user.username || creatorId === user._id)
+  );
+
+  useEffect(() => {
+    // fetch detailed attendee info when host views the page
+    const fetchAttendees = async () => {
+      if (!id || !isHost) return;
+      try {
+        const response = await axios.get(`/api/events/${id}`);
+        const populatedAttendees = response.data?.event?.attendees ?? [];
+        const normalizedAttendees = populatedAttendees.map((attendee: any) => ({
+          _id: attendee?._id?.toString?.() ?? attendee?._id ?? "",
+          name: attendee?.name || "",
+          lastName: attendee?.lastName || "",
+          username: attendee?.username || "",
+          email: attendee?.email || "",
+          image: attendee?.image || "",
+        }));
+        setAttendeeDetails(normalizedAttendees);
+      } catch (fetchError) {
+        console.error("Error fetching attendees:", fetchError);
+        setAttendeeDetails([]);
+      }
+    };
+
+    fetchAttendees();
+  }, [id, isHost]);
+
+  // allow guests to join or see confirmation state
   const handleJoin = async () => {
     if (!session?.user) {
       toast("You must be logged in to join");
@@ -220,6 +277,8 @@ export default function EventDetails() {
               </div>
 
               <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+              {!isHost ? (
+                <>
                 <p className="text-sm uppercase tracking-[0.4em] text-white/60">
                   RSVP
                 </p>
@@ -242,7 +301,51 @@ export default function EventDetails() {
                 >
                   {hasJoined ? "Joined" : joining ? "Joining..." : "Join event"}
                 </Button>
+                </>
+                ) : (
+                  <>
+                    <p className="text-sm uppercase tracking-[0.4em] text-white/60">
+                      Attendees
+                    </p>
+                    <h2 className="text-2xl font-semibold">Guest list</h2>
+                    <div className="space-y-3">
+                      {attendeeDetails.length === 0 ? (
+                        <p className="text-sm text-white/70">
+                          No attendees yet.
+                        </p>
+                      ) : (
+                        attendeeDetails.map((attendee) => (
+                          <div
+                            key={attendee._id}
+                            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"
+                          >
+                            <div className="h-10 w-10 overflow-hidden rounded-full border border-white/10">
+                              <img
+                                src={
+                                  attendee.image ||
+                                  "https://cdn.pfps.gg/pfps/2301-default-2.png"
+                                }
+                                alt={attendee.username || "attendee"}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white">
+                                {attendee.name || attendee.username || "Guest"}{" "}
+                                {attendee.lastName || ""}
+                              </p>
+                              <p className="text-xs text-white/70">
+                                {attendee.email || "Email hidden"}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                 ) }
               </div>
+              
             </div>
           </section>
         </div>
