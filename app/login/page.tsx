@@ -61,14 +61,12 @@ export default function Register() {
         redirect: false,
       })
       if (res?.error) {
-        console.log(res)
         setError("Invalid credentials or error signing in!")
         return
       }
       setError("")
       router.push("/")
     } catch (error) {
-      console.log(error)
       setError("An unexpected error occurred!")
     } finally {
       setLoading(false)

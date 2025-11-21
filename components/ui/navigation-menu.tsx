@@ -149,9 +149,19 @@ Avatar.displayName = AvatarPrimitive.Root.displayName
 
 export default function Navbar() {
  const { t } = useTranslation();
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [theme, setTheme] = useState("light");
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Initialize theme from localStorage on client-side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme) {
+        setTheme(savedTheme);
+      }
+    }
+  }, []);
   const toggleNavbar = () => {
     setIsCollapsed(!isCollapsed);
   };
@@ -191,6 +201,18 @@ export default function Navbar() {
     if (session?.user?.email) {
       fetchUserByEmail();
     }
+
+    const handleImageUpdate = (event: any) => {
+      if (event.detail?.imageUrl) {
+        setUser((prev: any) => ({
+          ...prev,
+          image: event.detail.imageUrl
+        }));
+      }
+    };
+
+    window.addEventListener('profileImageUpdated', handleImageUpdate);
+    return () => window.removeEventListener('profileImageUpdated', handleImageUpdate);
   }, [session?.user?.email]);
 
   return (
@@ -271,23 +293,23 @@ export default function Navbar() {
                         <h3 className="font-bold text-gray-700 text-center">
                           Nothing here <br /> unless you
                         </h3>
-                        <a href="/login">
+                        <Link href="/login">
                           <Button
-                            type="submit"
+                            type="button"
                             className="px-9 bg-blue-600 hover:bg-blue-700 text-white font-bold"
                           >
                             Log in
                           </Button>
-                        </a>
+                        </Link>
                         <h3 className="font-bold text-gray-700">or</h3>
-                        <a href="/signup">
+                        <Link href="/signup">
                           <Button
-                            type="submit"
+                            type="button"
                             className="px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold"
                           >
                             Sign up
                           </Button>
-                        </a>
+                        </Link>
                       </>
                     )}
                   </ul>
@@ -312,11 +334,11 @@ export default function Navbar() {
               </NavigationMenuItem>
               <NavigationMenuItem>
                 {/* add icon */}
-                <a href="/">
-                  <NavigationMenuLink className="font-bold text-2xl ml-3 ">
+                <Link href="/">
+                  <span className="font-bold text-2xl ml-3 cursor-pointer">
                     Eventful
-                  </NavigationMenuLink>
-                </a>
+                  </span>
+                </Link>
               </NavigationMenuItem>
             </div>
             <div className="flex-row items-center flex w-full justify-end space-x-4">
@@ -355,9 +377,9 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <a href="/login"><Button type="submit" className="px-9 bg-slate-500 font-bold" >Log in</Button></a>
+                  <Link href="/login"><Button type="button" className="px-9 bg-slate-500 font-bold" >Log in</Button></Link>
                   <h3 className="font-bold text-slate-600 ">or</h3>
-                  <a href="/signup"><Button type="submit" className="px-8 bg-slate-500 font-bold" >Sign up</Button>  </a>
+                  <Link href="/signup"><Button type="button" className="px-8 bg-slate-500 font-bold" >Sign up</Button></Link>
                 </>
               )}
             </div>

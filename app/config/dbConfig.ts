@@ -6,19 +6,30 @@ if (!MONGO_URI) {
   throw new Error("⚠️ MongoDB connection string is missing from environment variables!");
 }
 
+// Connection pool settings for better performance
+const connectionOptions = {
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
+
 export async function connect() {
   try {
     if (mongoose.connection.readyState >= 1) {
-      console.log("✅ Using existing MongoDB connection.");
-      return;
+      return mongoose.connection;
     }
 
-    await mongoose.connect(MONGO_URI!, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    } as any);
+    if (mongoose.connection.readyState === 2) {
+      // Already connecting, wait for it
+      await new Promise((resolve) => {
+        mongoose.connection.once('connected', resolve);
+      });
+      return mongoose.connection;
+    }
 
-    mongoose.connection.on("connected", () => console.log("✅ MongoDB connected."));
+    await mongoose.connect(MONGO_URI!, connectionOptions);
+
     mongoose.connection.on("error", (err) => console.error("❌ MongoDB connection error:", err));
 
     return mongoose.connection;

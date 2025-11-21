@@ -54,5 +54,11 @@ const eventSchema = new mongoose.Schema(
   }
 );
 
+// Add indexes for frequently queried fields to improve performance
+eventSchema.index({ createdBy: 1 });
+eventSchema.index({ status: 1, isPublic: 1, endDate: 1 });
+eventSchema.index({ attendees: 1 });
+eventSchema.index({ endDate: 1 });
+
 const Event = mongoose.models.Event || mongoose.model("Event", eventSchema);
 export default Event;

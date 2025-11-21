@@ -63,12 +63,11 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       const userSession: any = session;
       if (userSession.user) {
-        await connect();
-        const dbUser = await User.findOne({ email: userSession?.user?.email });
         userSession.user.id = token.id || "";
         userSession.user.email = token.email || null;
         userSession.user.name = token.name || null;
         userSession.user.image = token.picture || null;
+        userSession.user.lastName = token.lastName || null;
       }
      
       userSession.accessToken = token;

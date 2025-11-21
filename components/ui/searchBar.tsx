@@ -24,8 +24,6 @@ export default function EventSearch() {
         if (!res.ok) throw new Error("Failed to fetch events");
 
         const data = await res.json();
-        console.log("Fetched events:", data);
-
         const allEvents = Array.isArray(data.events) ? data.events : [];
 
         const filteredDashboardEvents = allEvents.filter((event: Event) => {

@@ -7,6 +7,9 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { CalendarDays, Clock, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import ConfirmModal from "./confirm-modal";
+import axios from "axios";
+import { useUser } from "@/app/contexts/UserContext";
 interface PostProps {
   post: {
     _id: string;
@@ -34,11 +37,12 @@ export default function Post({ post, hideComment }: PostProps) {
   const { t  } = useTranslation();
   const dt = DateTime.now();
   const { data: session } = useSession();
+  const { user: currentUser } = useUser();
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -51,36 +55,18 @@ export default function Post({ post, hideComment }: PostProps) {
         console.error("Error fetching comments:", error);
       }
     };
+
     fetchComments();
 
-  }, [showComments, post._id]);
-
-  
-  useEffect(() => {
-    const fetchUserByEmail = async () => {
-      if (!session?.user?.email) return;
-      try {
-        const response = await fetch("/api/currentUser", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email: session.user.email }),
-        });
-
-        if (!response.ok) return;
-
-        const data = await response.json();
-        if (data.user) {
-          setCurrentUser(data.user);
-        }
-      } catch (error) {
-        console.error("Error fetching current user for comments:", error);
+    const handleCommentUpdate = (event: any) => {
+      if (event.detail?.eventId === post._id) {
+        fetchComments();
       }
     };
 
-    fetchUserByEmail();
-  }, [session?.user?.email]);
+    window.addEventListener('commentUpdated', handleCommentUpdate);
+    return () => window.removeEventListener('commentUpdated', handleCommentUpdate);
+  }, [post._id]);
 
   function calcTimeLeft() {
     const startDateTime = DateTime.fromISO(post.startDate);
@@ -137,7 +123,6 @@ export default function Post({ post, hideComment }: PostProps) {
       const userId = (session.user as any).id || (session.user as any)._id || "";
       const userName = session.user.name || "Anonymous";
       const userImage =
-        fileUrl ||
         currentUser?.image ||
         (session.user as any).image ||
         "https://cdn.pfps.gg/pfps/2301-default-2.png";
@@ -154,8 +139,45 @@ export default function Post({ post, hideComment }: PostProps) {
 
       setComments((prevComments) => [...prevComments, data.comment]);
       setNewComment("");
+      
+      window.dispatchEvent(new CustomEvent('commentUpdated', { 
+        detail: { eventId: post._id } 
+      }));
     } catch (error) {
       console.error("Error adding comment:", error);
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!commentToDelete || !session?.user) return;
+
+    try {
+      const userId = (session.user as any).id || (session.user as any)._id || "";
+
+      const response = await axios.delete(`/api/events/${post._id}/comments`, {
+        data: {
+          commentId: commentToDelete,
+          userId,
+        },
+      });
+
+      if (response.status === 200) {
+        setComments((prev) => prev.filter((c) => c._id !== commentToDelete));
+        toast("Comment deleted");
+        
+        window.dispatchEvent(new CustomEvent('commentUpdated', { 
+          detail: { eventId: post._id } 
+        }));
+      }
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
+      if (error.response?.status === 403) {
+        toast("You can only delete your own comments");
+      } else {
+        toast("Error deleting comment");
+      }
+    } finally {
+      setCommentToDelete(null);
     }
   };
   
@@ -261,19 +283,37 @@ export default function Post({ post, hideComment }: PostProps) {
               >
                 <div className="max-h-40 overflow-y-auto space-y-3">
                   {comments.length > 0 ? (
-                    comments.map((comment) => (
-                      <div key={comment._id} className="flex items-start gap-3 rounded-2xl bg-white p-3 shadow-sm">
-                        <img
-                          src={comment.userImage}
-                          alt="User"
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{comment.userName}</p>
-                          <p className="text-sm text-slate-600">{comment.text}</p>
+                    comments.map((comment) => {
+                      const userId = (session?.user as any)?.id || (session?.user as any)?._id || "";
+                      const isOwnComment = userId === comment.userId;
+                      
+                      return (
+                        <div key={comment._id} className="flex items-start gap-3 rounded-2xl bg-white p-3 shadow-sm">
+                          <img
+                            src={comment.userImage || "https://cdn.pfps.gg/pfps/2301-default-2.png"}
+                            alt="User"
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-semibold text-slate-900">{comment.userName}</p>
+                              {isOwnComment && (
+                                <button
+                                  onClick={() => {
+                                    setCommentToDelete(comment._id);
+                                    setDeleteModalOpen(true);
+                                  }}
+                                  className="text-xs text-red-500 transition hover:text-red-600"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-600">{comment.text}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-sm text-slate-500">{t("nocomment")}</p>
                   )}
@@ -298,6 +338,21 @@ export default function Post({ post, hideComment }: PostProps) {
           </>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteComment}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setCommentToDelete(null);
+        }}
+        isDangerous={true}
+      />
     </div>
   );
 }

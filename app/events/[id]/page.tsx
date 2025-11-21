@@ -1,15 +1,17 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
 import { getServerSession } from "next-auth";
 import { toast } from "sonner";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, ArrowLeft } from "lucide-react";
 import Navbar from "@/components/ui/navigation-menu";
-import { useCurrentUser } from "@/app/api/useCurrentUser/route";
+import { useUser } from "@/app/contexts/UserContext";
+import { useEvents } from "@/app/contexts/EventsContext";
+import ConfirmModal from "@/components/ui/confirm-modal";
 
 
 interface Event {
@@ -55,6 +57,7 @@ interface Notification {
 
 export default function EventDetails() {
   const { id } = useParams();
+  const router = useRouter();
   const { data: session } = useSession();
   const [event, setEvent] = useState<Event | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +66,8 @@ export default function EventDetails() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [addingComment, setAddingComment] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
   const [hasJoined, setHasJoined] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>(() => {
@@ -74,44 +79,33 @@ export default function EventDetails() {
     localStorage.setItem("notifications", JSON.stringify(notifications));
   };
   // hydrate client session details with richer db data
-  const { user } = useCurrentUser();
+  const { user } = useUser();
+  const { events } = useEvents();
 
   useEffect(() => {
-    // fetch event basics from the cached event list
-    const fetchEventData = async () => {
-      try {
-        console.log("Fetching all events from /api/eventCreation...");
-        const response = await axios.get("/api/eventCreation");
+    if (!id || !events.length) return;
 
-        if (!response.data.events || response.data.events.length === 0) {
-          throw new Error("No events found");
-        }
+    try {
+      const currentEvent = events.find((evt: any) => evt._id === id);
 
-        const currentEvent = response.data.events.find((evt: Event) => evt._id === id);
-
-        if (!currentEvent) {
-          throw new Error("Event not found");
-        }
-
-        setEvent(currentEvent);
-
-        const userId = (session?.user as CustomSessionUser)?.id;
-        if (userId && currentEvent.attendees?.includes(userId)) {
-          setHasJoined(true);
-        }
-      } catch (err: any) {
-        console.error("Error fetching event:", err);
-        setError("Error fetching event");
+      if (!currentEvent) {
+        setError("Event not found");
+        return;
       }
-    };
 
-    if (id) {
-      fetchEventData();
+      setEvent(currentEvent as Event);
+
+      const userId = (session?.user as CustomSessionUser)?.id;
+      if (userId && currentEvent.attendees?.includes(userId)) {
+        setHasJoined(true);
+      }
+    } catch (err: any) {
+      console.error("Error finding event:", err);
+      setError("Error finding event");
     }
-  }, [id, session]);
+  }, [id, events, session]);
 
   useEffect(() => {
-    // load comment thread for this event
     const fetchComments = async () => {
       if (!id) return;
       try {
@@ -124,16 +118,23 @@ export default function EventDetails() {
     };
 
     fetchComments();
+
+    const handleCommentUpdate = (event: any) => {
+      if (event.detail?.eventId === id) {
+        fetchComments();
+      }
+    };
+
+    window.addEventListener('commentUpdated', handleCommentUpdate);
+    return () => window.removeEventListener('commentUpdated', handleCommentUpdate);
   }, [id]);
 
-  // normalize creator id for host comparisons
   const creatorId =
     typeof (event as any)?.createdBy === "string"
       ? (event as any)?.createdBy
       : (event as any)?.createdBy?._id?.toString?.() ??
         (event as any)?.createdBy?.toString?.();
 
-  // determine if logged user owns the event
   const isHost = Boolean(
     event &&
       user &&
@@ -210,7 +211,6 @@ export default function EventDetails() {
     }
   };
 
-  // push a new comment to the thread
   const handleAddComment = async () => {
     if (!session?.user) {
       toast("You must be logged in to comment");
@@ -249,6 +249,10 @@ export default function EventDetails() {
       if (response.status === 200 && response.data?.comment) {
         setComments((prev) => [...prev, response.data.comment]);
         setNewComment("");
+        
+        window.dispatchEvent(new CustomEvent('commentUpdated', { 
+          detail: { eventId: id } 
+        }));
       } else {
         toast("Unable to add comment");
       }
@@ -257,6 +261,47 @@ export default function EventDetails() {
       toast("Error adding comment");
     } finally {
       setAddingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!commentToDelete || !session?.user) {
+      return;
+    }
+
+    const userId = (session.user as CustomSessionUser)?.id;
+    if (!userId) {
+      toast("User information missing");
+      return;
+    }
+
+    try {
+      const response = await axios.delete(`/api/events/${id}/comments`, {
+        data: {
+          commentId: commentToDelete,
+          userId,
+        },
+      });
+
+      if (response.status === 200) {
+        setComments((prev) => prev.filter((c) => c._id !== commentToDelete));
+        toast("Comment deleted");
+        
+        window.dispatchEvent(new CustomEvent('commentUpdated', { 
+          detail: { eventId: id } 
+        }));
+      } else {
+        toast("Unable to delete comment");
+      }
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
+      if (error.response?.status === 403) {
+        toast("You can only delete your own comments");
+      } else {
+        toast("Error deleting comment");
+      }
+    } finally {
+      setCommentToDelete(null);
     }
   };
 
@@ -289,6 +334,14 @@ export default function EventDetails() {
       <Navbar />
       <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 px-4 py-12 text-white">
         <div className="mx-auto flex max-w-5xl flex-col gap-8">
+          {/* Back Button */}
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm text-white/70 transition hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
           <section
             data-aos="fade-up"
             className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/40 shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl"
@@ -453,36 +506,54 @@ export default function EventDetails() {
                   Be the first to share your thoughts about this event.
                 </p>
               ) : (
-                comments.map((comment, index) => (
-                  <div
-                    key={comment._id}
-                    data-aos="fade-up"
-                    data-aos-delay={index * 70}
-                    className="flex gap-4 rounded-3xl border border-white/10 bg-white/5 p-4"
-                  >
-                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border border-white/10">
-                      <img
-                        src={
-                          comment.userImage ||
-                          "https://cdn.pfps.gg/pfps/2301-default-2.png"
-                        }
-                        alt={comment.userName}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 text-sm text-white/70">
-                        <p className="font-semibold text-white">
-                          {comment.userName}
-                        </p>
-                        <span className="text-xs text-white/50">
-                          {new Date(comment.createdAt).toLocaleString()}
-                        </span>
+                comments.map((comment, index) => {
+                  const isOwnComment = (session?.user as CustomSessionUser)?.id === comment.userId;
+                  
+                  return (
+                    <div
+                      key={comment._id}
+                      data-aos="fade-up"
+                      data-aos-delay={index * 70}
+                      className="flex gap-4 rounded-3xl border border-white/10 bg-white/5 p-4"
+                    >
+                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border border-white/10">
+                        <img
+                          src={
+                            comment.userImage ||
+                            "https://cdn.pfps.gg/pfps/2301-default-2.png"
+                          }
+                          alt={comment.userName}
+                          className="h-full w-full object-cover"
+                        />
                       </div>
-                      <p className="mt-2 text-white/80">{comment.text}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm text-white/70">
+                            <p className="font-semibold text-white">
+                              {comment.userName}
+                            </p>
+                            <span className="text-xs text-white/50">
+                              {new Date(comment.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          {isOwnComment && (
+                            <button
+                              onClick={() => {
+                                setCommentToDelete(comment._id);
+                                setDeleteModalOpen(true);
+                              }}
+                              className="text-xs text-red-400 transition hover:text-red-300"
+                              title="Delete comment"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                        <p className="mt-2 text-white/80">{comment.text}</p>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -518,6 +589,21 @@ export default function EventDetails() {
           </section>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteComment}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setCommentToDelete(null);
+        }}
+        isDangerous={true}
+      />
     </>
   );
 }

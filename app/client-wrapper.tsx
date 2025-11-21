@@ -7,6 +7,8 @@ import { Toaster } from "react-hot-toast";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/public/i18n";
 import AOS from "aos";
+import { UserProvider } from "@/app/contexts/UserContext";
+import { EventsProvider } from "@/app/contexts/EventsContext";
 
 export default function ClientWrapper({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -22,7 +24,11 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
     <GoogleOAuthProvider clientId={process.env.GOOGLE_CLIENT_ID!}>
       <I18nextProvider i18n={i18n}>
         <AuthProvider>
-          {children}
+          <UserProvider>
+            <EventsProvider>
+              {children}
+            </EventsProvider>
+          </UserProvider>
         </AuthProvider>
         <Toaster position="top-right" reverseOrder={false} />
       </I18nextProvider>

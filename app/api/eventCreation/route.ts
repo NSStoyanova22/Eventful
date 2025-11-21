@@ -76,21 +76,36 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  await connect();
-
   try {
-    const events = await Event.find({});
+    await connect();
 
-    const eventsWithUserDetails = await Promise.all(
-      events.map(async (event) => {
-        const user = await User.findById(event.createdBy).select("username image");
-        return {
-          ...event.toObject(),
-          createdByName: event.createdByName || user?.username || "Eventful Host",
-          createdByImage: user?.image || "https://cdn.pfps.gg/pfps/2301-default-2.png",
-        };
-      })
-    );
+    // Optimized query - now that images are URLs, we can include them
+    const events = await Event.find({})
+      .select('-__v -comments') // Exclude heavy fields (comments can be large)
+      .lean()
+      .exec();
+
+    const userIds = Array.from(new Set(events.map((e: any) => e.createdBy?.toString()).filter(Boolean)));
+
+    // Now fetch username AND image - they're just URLs now, very lightweight!
+    const users = await User.find({ _id: { $in: userIds } })
+      .select('username image')
+      .lean()
+      .exec();
+
+    const userMap = new Map(users.map((u: any) => [u._id.toString(), u]));
+
+    // Map the data to the expected format
+    const eventsWithUserDetails = events.map((event: any) => {
+      const user = userMap.get(event.createdBy?.toString());
+      return {
+        ...event,
+        _id: event._id.toString(),
+        createdByName: event.createdByName || user?.username || "Eventful Host",
+        // Use user image URL (now lightweight) or default
+        createdByImage: user?.image || "https://cdn.pfps.gg/pfps/2301-default-2.png",
+      };
+    });
 
     return NextResponse.json({ events: eventsWithUserDetails });
   } catch (error: any) {
@@ -98,9 +113,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

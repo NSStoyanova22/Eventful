@@ -48,6 +48,7 @@ export default function SignUp() {
     username: "",
     email: "",
     password: "",
+    image: "",
   });
 
   const router = useRouter();
@@ -58,8 +59,7 @@ export default function SignUp() {
   };
 
   function onSubmit(values: z.infer<typeof signUpValidation>) {
-    console.log("Form values from RHF:", values);
-    console.log("Local user state:", user);
+    // Form validation handled by Zod
   }
 
   const handleSubmit = async (e: any) => {
@@ -75,21 +75,38 @@ export default function SignUp() {
         !user.username
       ) {
         setError("Please, fill all the fields!");
+        setLoading(false);
         return;
       }
 
       const res = await axios.post("/api/register", user);
-      console.log(res.data);
 
       if (res.status === 200 || res.status === 201) {
-        console.log("User added successfully");
         setError("");
-        isAuthentic = true;
-        router.push("/");
+        
+        // Automatically sign in the user after successful registration
+        const signInResult = await signIn("credentials", {
+          email: user.email,
+          password: user.password,
+          redirect: false,
+        });
+
+        if (signInResult?.error) {
+          console.error("Auto-login failed:", signInResult.error);
+          setError("Registration successful, but auto-login failed. Please log in manually.");
+          router.push("/login");
+        } else {
+          isAuthentic = true;
+          router.push("/");
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setError("Something went wrong while registering!");
+      if (error.response?.data?.error) {
+        setError(error.response.data.error);
+      } else {
+        setError("Something went wrong while registering!");
+      }
     } finally {
       setLoading(false);
       setUser({
@@ -98,6 +115,7 @@ export default function SignUp() {
         username: "",
         email: "",
         password: "",
+        image: "",
       });
     }
   };

@@ -9,21 +9,28 @@ import Footer from "@/components/ui/footer";
 import { DateTime } from "luxon";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { useUser } from "@/app/contexts/UserContext";
+import { useEvents } from "@/app/contexts/EventsContext";
 
-interface Event {
+type EventType = {
   _id: string;
   title: string;
+  description: string;
   startDate: string;
   endDate: string;
   attendees: string[];
   isPublic: boolean;
   status: string;
-  description: string;
+  image?: string;
+  createdByImage?: string;
+  createdByName?: string;
+  attending?: number;
   photos?: string[];
-}
+};
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
+  const { user } = useUser();
+  const { events: allEvents, refetch: refetchEvents } = useEvents();
   const { t  } = useTranslation();
   const { data: session } = useSession();
   const profileHref =
@@ -41,79 +48,38 @@ export default function Dashboard() {
     hourMessage = t("goodev");
   }
 
-  const [posts, setPosts] = useState<Event[]>([]);
-  const [attendingEvents, setAttendingEvents] = useState<Event[]>([]);
-  const [finishedEvents, setFinishedEvents] = useState<Event[]>([]);
+  const [posts, setPosts] = useState<EventType[]>([]);
+  const [attendingEvents, setAttendingEvents] = useState<EventType[]>([]);
+  const [finishedEvents, setFinishedEvents] = useState<EventType[]>([]);
   const [attendingIndex, setAttendingIndex] = useState(0);
   const [finishedIndex, setFinishedIndex] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    const fetchUserByEmail = async () => {
-      try {
-        const response = await fetch("/api/currentUser", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email: session?.user?.email }),
-        });
+    const userId = session?.user?.id;
+    
+    if (!userId || !allEvents.length) return;
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch user");
-        }
+    const now = new Date();
 
-        const data = await response.json();
-        if (data?.user) {
-          setUser(data.user);
-        }
-      } catch (error) {
-        console.error("Error fetching user:", error);
-      }
-    };
+    const attending = (allEvents as EventType[]).filter(
+      (event) =>
+        event.attendees.includes(userId) && new Date(event.endDate) > now
+    );
 
-    if (session?.user?.email) {
-      fetchUserByEmail();
-    }
-  }, [session?.user?.email]);
+    const finished = (allEvents as EventType[]).filter(
+      (event) =>
+        event.attendees.includes(userId) && new Date(event.endDate) < now
+    );
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      const userId = session?.user?.id;
-      if (!userId) return;
-
-      try {
-        const res = await fetch("/api/eventCreation");
-        if (!res.ok) throw new Error("Failed to fetch events");
-        const data = await res.json();
-
-        const now = new Date();
-
-        const attending =
-          data.events?.filter(
-            (event: Event) =>
-              event.attendees.includes(userId) && new Date(event.endDate) > now
-          ) || [];
-
-        const finished =
-          data.events?.filter(
-            (event: Event) =>
-              event.attendees.includes(userId) && new Date(event.endDate) < now
-          ) || [];
-
-        setPosts(data.events || []);
-        setAttendingEvents(attending);
-        setFinishedEvents(finished);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    fetchPosts();
-  }, [session?.user?.id]);
+    setPosts(allEvents as EventType[]);
+    setAttendingEvents(attending);
+    setFinishedEvents(finished);
+  }, [allEvents, session?.user?.id]);
 
   const filteredEvents = posts.filter((event) => {
+
     const eventEndDate = new Date(event.endDate);
     return (
       event.isPublic && eventEndDate > new Date() && event.status === "approved"
@@ -143,9 +109,6 @@ export default function Dashboard() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      console.log("Uploading photo for event:", eventId);
-      console.log("Selected file:", selectedFile.name);
-
       const res = await fetch(`/api/events/${eventId}/photos`, {
         method: "POST",
         body: formData,
@@ -158,29 +121,7 @@ export default function Dashboard() {
 
       toast.success("Photo uploaded successfully!");
       setSelectedFile(null);
-
-      const refreshRes = await fetch("/api/eventCreation");
-
-      if (!refreshRes.ok) {
-        const errorMessage = await refreshRes.text();
-        throw new Error(`Failed to refresh events: ${errorMessage}`);
-      }
-
-      const refreshData = await refreshRes.json();
-      const userId = session?.user?.id;
-
-      if (!userId) {
-        console.error("User ID not found in session");
-        return;
-      }
-
-      setFinishedEvents(
-        refreshData.events?.filter(
-          (event: Event) =>
-            event.attendees.includes(userId) &&
-            new Date(event.endDate) < new Date()
-        ) || []
-      );
+      await refetchEvents();
 
     } catch (error) {
       console.error("Error uploading photo:", error);

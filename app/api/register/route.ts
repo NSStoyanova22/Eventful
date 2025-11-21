@@ -5,15 +5,17 @@ import bcryptjs from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
-    console.log("Register API hit");
-    await connect();
     try {
+        await connect();
         const { name, lastName, email, username, password, image } = await req.json();
-        console.log("Request body:", { name, lastName, email, username, password, image });
+
+        // Validate required fields
+        if (!name || !lastName || !email || !username || !password) {
+            return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+        }
 
         const ifUserExists = await User.findOne({ email });
         if (ifUserExists) {
-            console.log("User already exists");
             return NextResponse.json({ error: "User already exists" }, { status: 400 });
         }
 
@@ -26,10 +28,9 @@ export async function POST(req: NextRequest) {
             email,
             username,
             password: hashedPassword,
-            image
+            image: image || ""
         }).save();
 
-        console.log("User created successfully:", savedUser);
         return NextResponse.json({
             message: "User created successfully",
             success: true,
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error("Error in register API:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Registration failed" }, { status: 500 });
     }
 }
 export async function GET(req: NextRequest) {
@@ -56,18 +57,10 @@ export async function GET(req: NextRequest) {
 
 
 export async function PATCH(req: NextRequest) {
-    console.log("Profile update API hit");
     await connect();
 
     try {
         const { email, image, name, lastName, username } = await req.json();
-        console.log("Request body:", {
-            email,
-            hasImage: Boolean(image),
-            hasName: Boolean(name),
-            hasLastName: Boolean(lastName),
-            hasUsername: Boolean(username)
-        });
 
         if (!email) {
             return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -80,13 +73,15 @@ export async function PATCH(req: NextRequest) {
 
         const updates: Record<string, string> = {};
         let usernameChanged = false;
+        let imageChanged = false;
         const trimmedImage = typeof image === "string" ? image.trim() : "";
         const trimmedName = typeof name === "string" ? name.trim() : "";
         const trimmedLastName = typeof lastName === "string" ? lastName.trim() : "";
         const trimmedUsername = typeof username === "string" ? username.trim() : "";
 
-        if (trimmedImage) {
+        if (trimmedImage && trimmedImage !== existingUser.image) {
             updates.image = trimmedImage;
+            imageChanged = true;
         }
         if (trimmedName) {
             updates.name = trimmedName;
@@ -119,7 +114,6 @@ export async function PATCH(req: NextRequest) {
         );
 
         if (!updatedUser) {
-            console.log("User not found");
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
@@ -144,7 +138,22 @@ export async function PATCH(req: NextRequest) {
             );
         }
 
-        console.log("Profile updated successfully:", updates);
+        if (imageChanged && updates.image) {
+            const newImage = updates.image;
+
+            await Event.updateMany(
+                { "comments.userId": existingUser._id },
+                {
+                    $set: {
+                        "comments.$[comment].userImage": newImage
+                    }
+                },
+                {
+                    arrayFilters: [{ "comment.userId": existingUser._id }]
+                }
+            );
+        }
+
         return NextResponse.json({
             message: "Profile updated successfully",
             success: true,

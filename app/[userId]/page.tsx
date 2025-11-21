@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/ui/navigation-menu";
 import { DateTime } from 'luxon';
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState, useRef } from "react";
 import ProfilePost from "@/components/ui/post";
 import { signOut } from "next-auth/react"
 import Link from "next/link";
@@ -30,12 +30,19 @@ type CountryOption = {
 
 export default function UserProfile() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [userSession, setUserSession] = useState(Object);
   const [imageSrc, setImageSrc] = useState('');
   const [posts, setPosts] = useState<any[]>([]);
   const [attendingEvents, setAttendingEvents] = useState<any[]>([]);
   const userId = session?.user?.id;
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [attendingIndex, setAttendingIndex] = useState(0);
   const [openSettings, setOpenSettings] = useState(false);
@@ -57,6 +64,8 @@ export default function UserProfile() {
 
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const justUploadedRef = useRef(false);
 
   const handleSave = async () => {
     if (!session?.user?.email) {
@@ -69,9 +78,7 @@ export default function UserProfile() {
     const trimmedLastName = lastName.trim();
     const trimmedUsername = newUsername.trim();
 
-    if (fileUrl && fileUrl !== user?.image) {
-      payload.image = fileUrl;
-    }
+    // Note: Image is already uploaded via handleFileChange, no need to send it here
     if (trimmedName && trimmedName !== user?.name) {
       payload.name = trimmedName;
     }
@@ -143,8 +150,6 @@ export default function UserProfile() {
     fetchPosts();
   }, [userId]);
   //filter events created by user
-  console.log(posts);
-  console.log("User name", session?.user?.name);
   const isEventCreatedByCurrentUser = (event: any) => {
     if (!event || !userId) {
       return false;
@@ -225,15 +230,14 @@ export default function UserProfile() {
 
 
   useEffect(() => {
-    if (session) {
+    if (session && !isUploadingImage && !justUploadedRef.current) {
       const customSession: any = session;
       const { picture } = customSession.accessToken;
-      console.log("Client side: ", session)
       setUserSession(session);
       setImageSrc(picture || '');
-      setFileUrl(picture || '');
+      setFileUrl((prev) => prev || picture || '');
     }
-  }, [session]);
+  }, [session, isUploadingImage]);
 
   // manage country in settings
 
@@ -274,8 +278,6 @@ export default function UserProfile() {
         const selectedCountry = data[0];
         // setSelectedCountry(selectedCountry.name);
         // setRegion(selectedCountry.region);
-      } else {
-        console.log("Country not found.");
       }
     } catch (error) {
       console.error("Error fetching country data:", error);
@@ -292,32 +294,89 @@ export default function UserProfile() {
 
   useEffect(() => {
     if (session?.user.email !== "") {
-      console.log("email: ", email)
       // getUserById(); 
     }
   }, [fileUrl])
 
-  // manage profile pic upload or change, convert to base64
+  // manage profile pic upload - save to disk instead of base64
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !userId) return;
 
-    let file = event.target.files?.[0];
-    if (file) {
-      toBase64(file).then((res: any) => {
-        if (res) {
-          setFileUrl(res);
+    try {
+      setIsUploadingImage(true);
+      justUploadedRef.current = true;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => setFileUrl(e.target?.result as string);
+      reader.readAsDataURL(file);
+
+      // Upload file to server
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", userId);
+
+      const response = await fetch("/api/upload-profile-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload image");
+      }
+
+      const data = await response.json();
+      const newImageUrl = data.imageUrl;
+      
+      setFileUrl(newImageUrl);
+      setUser((prev: any) => ({
+        ...prev,
+        image: newImageUrl
+      }));
+      
+      window.dispatchEvent(new CustomEvent('profileImageUpdated', { 
+        detail: { imageUrl: newImageUrl } 
+      }));
+      
+      setTimeout(async () => {
+        try {
+          const refreshResponse = await fetch("/api/currentUser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: session?.user?.email }),
+            cache: 'no-store'
+          });
+          
+          if (refreshResponse.ok) {
+            const refreshedData = await refreshResponse.json();
+            if (refreshedData?.user?.image === newImageUrl) {
+              console.log("Image upload verified");
+            }
+          }
+        } catch (error) {
+          console.error("Error verifying image upload:", error);
         }
-      })
+        
+        setTimeout(() => {
+          justUploadedRef.current = false;
+        }, 2000);
+      }, 500);
+      
+      toast.success("Image uploaded successfully!");
+      
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
+      // Revert to original image on error
+      if (user?.image) {
+        setFileUrl(user.image);
+      }
+      justUploadedRef.current = false;
+    } finally {
+      setIsUploadingImage(false);
     }
   };
-
-
-  const toBase64 = (file: any) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
   const fetchUserByEmail = useCallback(async () => {
     try {
       const response = await fetch("/api/currentUser", {
@@ -333,9 +392,12 @@ export default function UserProfile() {
       }
 
       const data = await response.json();
+      
       if (data.user) {
         setUser(data.user);
-        setFileUrl((prev) => prev || data.user.image || null);
+        if (!justUploadedRef.current) {
+          setFileUrl(data.user.image || null);
+        }
       }
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -343,10 +405,10 @@ export default function UserProfile() {
   }, [session?.user?.email]);
 
   useEffect(() => {
-    if (session?.user?.email) {
+    if (session?.user?.email && !isUploadingImage && !justUploadedRef.current) {
       fetchUserByEmail();
     }
-  }, [session?.user?.email, fetchUserByEmail]);
+  }, [session?.user?.email, fetchUserByEmail, isUploadingImage]);
 
 
 
@@ -359,6 +421,23 @@ export default function UserProfile() {
   };
 
 
+
+  // Show loading state while checking authentication
+  if (status === "loading") {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 px-4 py-12 flex items-center justify-center">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+      </>
+    );
+  }
+
+  // Don't render profile if not authenticated
+  if (!session) {
+    return null;
+  }
 
   return (
     <>
@@ -416,7 +495,7 @@ export default function UserProfile() {
 
             <div className="flex flex-col w-full gap-3 pt-4">
               <button onClick={handleToggleSettings} className="w-full rounded-2xl bg-white/15 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-blue-900/30 transition hover:bg-white/25">{openSettings ? "Done" : "Edit profile"}</button>
-              <button onClick={() => signOut()} className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold tracking-wide text-slate-900 transition hover:bg-slate-100">Sign out</button>
+              <button onClick={() => signOut({ callbackUrl: "/" })} className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold tracking-wide text-slate-900 transition hover:bg-slate-100">Sign out</button>
             </div>
           </aside>
           {/* IF settings are open */}
@@ -434,17 +513,28 @@ export default function UserProfile() {
                 </div>
                 <div className="flex flex-col gap-6 md:flex-row md:items-center">
                   <div className="relative mx-auto md:mx-0 w-28 h-28 rounded-full bg-gradient-to-br from-blue-50 to-white p-1 shadow-inner shadow-blue-200">
-
                     <img
-
                       src={fileUrl ? fileUrl : user?.image}
                       className="w-full h-full rounded-full object-cover"
                     />
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 text-white text-[10px] px-3 py-0.5 shadow-lg">Preview</span>
+                    {isUploadingImage && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/20 border-t-white"></div>
+                      </div>
+                    )}
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 text-white text-[10px] px-3 py-0.5 shadow-lg">
+                      {isUploadingImage ? "Uploading..." : "Preview"}
+                    </span>
                   </div>
 
-                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" id="fileInput" />
-                  <button onClick={() => document.getElementById('fileInput')?.click()} className="rounded-2xl border border-dashed border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600">{user?.image ? "Change profile photo" : "Upload profile photo"}</button>
+                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" id="fileInput" disabled={isUploadingImage} />
+                  <button 
+                    onClick={() => document.getElementById('fileInput')?.click()} 
+                    disabled={isUploadingImage}
+                    className="rounded-2xl border border-dashed border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUploadingImage ? "Uploading..." : user?.image ? "Change profile photo" : "Upload profile photo"}
+                  </button>
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
 

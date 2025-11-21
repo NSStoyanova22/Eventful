@@ -6,11 +6,10 @@ export async function POST(req: NextRequest) {
     await connect();
     
     try {
-        const body = await req.json(); 
-        console.log("Request body:", body);
+        const body = await req.json();
 
-        const user = await User.findOne({ email: body.email });
-        console.log("User found:", user);
+        // Now that images are URLs (not base64), always include them - they're lightweight!
+        const user = await User.findOne({ email: body.email }).lean();
 
         if (!user) {
             return NextResponse.json({ message: "User not found" }, { status: 404 });
