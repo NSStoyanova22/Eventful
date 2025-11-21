@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { connect } from "@/app/config/dbConfig";
 import Event from "@/app/models/event";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import moderateText from "@/app/lib/moderate";
 
 export async function GET(request: Request, { params }: any) {
   try {
@@ -8,8 +11,16 @@ export async function GET(request: Request, { params }: any) {
     const { id } = params;
     const event = await Event.findById(id).populate("attendees"); 
 
+    const session = await getServerSession(authOptions);
+    const requesterId = session?.user?.id?.toString();
+    const creatorId = event?.createdBy?.toString();
+
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    if (event.status !== "approved" && creatorId !== requesterId) {
+      return NextResponse.json({ error: "Event not available" }, { status: 403 });
     }
 
     return NextResponse.json({ event }, { status: 200 });
@@ -24,27 +35,45 @@ export async function PUT(request: Request, { params }: any) {
     await connect();
     const { id } = params;
 
+    const existingEvent = await Event.findById(id);
+    if (!existingEvent) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
     const formData = await request.formData();
 
-    const title = formData.get("title")?.toString();
-    const description = formData.get("description")?.toString();
-    const startDate = formData.get("startDate")?.toString();
-    const endDate = formData.get("endDate")?.toString();
-    const isPublic = JSON.parse(formData.get("isPublic")?.toString() || "false");
-    const guestLimit = parseInt(formData.get("guestLimit")?.toString() || "0");
+    const title = formData.get("title")?.toString() ?? existingEvent.title;
+    const description =
+      formData.get("description")?.toString() ?? existingEvent.description;
+    const startDate =
+      formData.get("startDate")?.toString() ?? existingEvent.startDate;
+    const endDate =
+      formData.get("endDate")?.toString() ?? existingEvent.endDate;
+    const isPublic = formData.has("isPublic")
+      ? JSON.parse(formData.get("isPublic")?.toString() || "false")
+      : existingEvent.isPublic;
+    const guestLimit = formData.has("guestLimit")
+      ? parseInt(formData.get("guestLimit")?.toString() || "0")
+      : existingEvent.guestLimit;
 
+    const moderationStatus = !moderateText(description || "").allowed
+      ? "flagged"
+      : !moderateText(title || "").allowed
+      ? "flagged"
+      : "approved";
 
     const updatedEvent = await Event.findByIdAndUpdate(
       id,
-      { 
-        title, 
-        description, 
-        startDate, 
-        endDate, 
-        isPublic, 
-        guestLimit 
+      {
+        title,
+        description,
+        startDate,
+        endDate,
+        isPublic,
+        guestLimit,
+        status: moderationStatus,
       },
-      { new: true } 
+      { new: true }
     );
 
     if (!updatedEvent) {

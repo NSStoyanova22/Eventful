@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import ConfirmModal from "./confirm-modal";
 import axios from "axios";
 import { useUser } from "@/app/contexts/UserContext";
+import { addNotificationToStorage, getStoredNotifications } from "./notification-utils";
 interface PostProps {
   post: {
     _id: string;
@@ -83,15 +84,10 @@ export default function Post({ post, hideComment }: PostProps) {
   }
 
   const addNotification = (newMessage: string, icon: string) => {
-    const savedNotifications = localStorage.getItem("notifications");
-    const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
-
-    const newNotification = { message: newMessage, icon };
-
-    if (!notifications.some((notification: any) => notification.message === newMessage)) {
-      const updatedNotifications = [...notifications, newNotification];
-      localStorage.setItem("notifications", JSON.stringify(updatedNotifications));
-    }
+    addNotificationToStorage(
+      { message: newMessage, icon },
+      { dedupeByMessage: true }
+    );
   };
 
   useEffect(() => {
@@ -103,9 +99,7 @@ export default function Post({ post, hideComment }: PostProps) {
     }
     if (calcTimeLeft() === "10 days") {
       const notificationMessage = post.title + " by " + post.createdByName + " starting in 10 days!";
-      const savedNotifications = localStorage.getItem("notifications");
-      const notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
-
+      const notifications = getStoredNotifications();
       if (!notifications.some((notification: any) => notification.message === notificationMessage)) {
         toast(notificationMessage, {
           description: "Plan the outfit and check the weather!",

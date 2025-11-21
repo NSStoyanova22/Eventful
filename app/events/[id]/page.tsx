@@ -1,17 +1,25 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
-import { getServerSession } from "next-auth";
 import { toast } from "sonner";
-import { CalendarDays, ArrowLeft } from "lucide-react";
+import { CalendarDays, ArrowLeft, PencilLine, ShieldAlert, Trash2 } from "lucide-react";
 import Navbar from "@/components/ui/navigation-menu";
 import { useUser } from "@/app/contexts/UserContext";
 import { useEvents } from "@/app/contexts/EventsContext";
 import ConfirmModal from "@/components/ui/confirm-modal";
+import CreateEvent from "@/components/ui/createEvent";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { addNotificationToStorage } from "@/components/ui/notification-utils";
 
 
 interface Event {
@@ -20,9 +28,14 @@ interface Event {
   createdBy?: string;
   createdByName?: string;
   startDate: string;
+  endDate?: string;
+  status?: string;
   description: string;
   attending: number;
   attendees?: string[];
+  image?: string;
+  isPublic?: boolean;
+  guestLimit?: number;
 }
 
 interface Comment {
@@ -50,11 +63,6 @@ interface CustomSessionUser {
   image?: string;
 }
 
-interface Notification {
-  message: string;
-  icon: string;
-}
-
 export default function EventDetails() {
   const { id } = useParams();
   const router = useRouter();
@@ -67,17 +75,11 @@ export default function EventDetails() {
   const [newComment, setNewComment] = useState("");
   const [addingComment, setAddingComment] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteEventModalOpen, setDeleteEventModalOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const [hasJoined, setHasJoined] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(() => {
-    const savedNotifications = localStorage.getItem("notifications");
-    return savedNotifications ? JSON.parse(savedNotifications) : [];
-  });
-
-  const storeNotificationsToLocalStorage = (notifications: Notification[]) => {
-    localStorage.setItem("notifications", JSON.stringify(notifications));
-  };
   // hydrate client session details with richer db data
   const { user } = useUser();
   const { events } = useEvents();
@@ -140,6 +142,39 @@ export default function EventDetails() {
       user &&
       (event.createdByName === user.username || creatorId === user._id)
   );
+  const isFlagged = Boolean(isHost && event?.status === "flagged");
+
+  const eventToEdit = useMemo(() => {
+    if (!event) return null;
+    return {
+      _id: event._id,
+      title: event.title,
+      description: event.description,
+      startDate: event.startDate,
+      endDate: event.endDate ?? event.startDate,
+      guestLimit: (event as any)?.guestLimit ?? 0,
+      isPublic: (event as any)?.isPublic ?? false,
+      attending: event.attending,
+    };
+  }, [event]);
+
+  const handleEventUpdated = (updatedEvent: any) => {
+    if (updatedEvent) {
+      setEvent(updatedEvent);
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!id) return;
+    try {
+      await axios.delete(`/api/events/${id}`);
+      toast("Event deleted");
+      router.push("/created-events");
+    } catch (deleteError) {
+      console.error("Error deleting event:", deleteError);
+      toast("Failed to delete event");
+    }
+  };
 
   useEffect(() => {
     // fetch detailed attendee info when host views the page
@@ -196,11 +231,10 @@ export default function EventDetails() {
         );
         const message = ("Joined " + event?.title + " by " + event?.createdByName + "!");
         toast(message);
-        setNotifications((prevNotifications: any) => {
-          const updatedNotifications = [...prevNotifications, { message, icon: "CalendarDays" }];
-          storeNotificationsToLocalStorage(updatedNotifications);
-          return updatedNotifications;
-        });
+        addNotificationToStorage(
+          { message, icon: "CalendarDays" },
+          { dedupeByMessage: true }
+        );
       } else {
         console.error("Failed to join event");
       }
@@ -342,6 +376,39 @@ export default function EventDetails() {
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
+          {isFlagged && (
+            <div className="rounded-3xl border border-yellow-500/40 bg-yellow-900/30 p-5 text-sm text-yellow-100 shadow-[0_20px_60px_rgba(190,152,52,0.25)]">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="mt-1 h-5 w-5 flex-shrink-0 text-yellow-300" />
+                  <div>
+                    <p className="text-base font-semibold">Event flagged for review</p>
+                    <p className="text-yellow-100/80">
+                      Only you can view this event right now. Update the details to remove
+                      sensitive wording or delete it if it was created by mistake.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    variant="outline"
+                    className="border-yellow-400/40 text-yellow-50 hover:bg-yellow-500/10"
+                    onClick={() => setEditDialogOpen(true)}
+                  >
+                    <PencilLine className="mr-2 h-4 w-4" />
+                    Update event
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setDeleteEventModalOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete event
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           <section
             data-aos="fade-up"
             className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/40 shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl"
@@ -365,6 +432,14 @@ export default function EventDetails() {
                   <span className="rounded-full bg-white/10 px-4 py-1">
                     {formattedTime}
                   </span>
+                  {event.status === "flagged" ? (
+                  
+                    <span
+                      className="rounded-full px-4 py-1 text-xs font-semibold bg-amber-500/30 text-amber-100"
+                    >
+                      Status: {event.status}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -604,6 +679,33 @@ export default function EventDetails() {
         }}
         isDangerous={true}
       />
+      <ConfirmModal
+        isOpen={deleteEventModalOpen}
+        title="Delete Event"
+        message="Deleting this event will remove it permanently for everyone. This action cannot be undone."
+        confirmText="Delete event"
+        cancelText="Cancel"
+        onConfirm={handleDeleteEvent}
+        onCancel={() => setDeleteEventModalOpen(false)}
+        isDangerous
+      />
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-3xl border border-white/10 bg-slate-950/90 text-white">
+          <DialogHeader>
+            <DialogTitle>Edit event details</DialogTitle>
+            <DialogDescription className="text-white/70">
+              Update the title, description, or settings to resubmit the event for approval.
+            </DialogDescription>
+          </DialogHeader>
+          {eventToEdit && (
+            <CreateEvent
+              eventToEdit={eventToEdit}
+              onEventUpdated={handleEventUpdated}
+              onClose={() => setEditDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

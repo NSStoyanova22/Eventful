@@ -4,6 +4,8 @@ import User from "@/app/models/user";
 import { NextRequest, NextResponse } from "next/server";
 import moderateText from "../../lib/moderate";
 import mongoose from "mongoose";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function POST(req: NextRequest) {
   try {
@@ -107,6 +109,7 @@ export async function POST(req: NextRequest) {
       success: true,
       eventId: newEvent._id,
       imageUrl,
+      status: moderationStatus,
     });
   } catch (error: any) {
     console.error("Error creating event:", error);
@@ -120,6 +123,8 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     await connect();
+    const session = await getServerSession(authOptions);
+    const requesterId = session?.user?.id?.toString();
 
     // Optimized query - now that images are URLs, we can include them
     const events = await Event.find({})
@@ -127,7 +132,30 @@ export async function GET(req: NextRequest) {
       .lean()
       .exec();
 
-    const userIds = Array.from(new Set(events.map((e: any) => e.createdBy?.toString()).filter(Boolean)));
+    const filteredEvents = events.filter((event: any) => {
+      const creatorId =
+        typeof event.createdBy?.toString === "function"
+          ? event.createdBy.toString()
+          : event.createdBy;
+
+      if (event.status === "approved") {
+        return true;
+      }
+
+      return Boolean(requesterId && creatorId && creatorId === requesterId);
+    });
+
+    const userIds = Array.from(
+      new Set(
+        filteredEvents
+          .map((e: any) =>
+            typeof e.createdBy?.toString === "function"
+              ? e.createdBy.toString()
+              : e.createdBy
+          )
+          .filter(Boolean)
+      )
+    );
 
     // Now fetch username AND image - they're just URLs now, very lightweight!
     const users = await User.find({ _id: { $in: userIds } })
@@ -138,7 +166,7 @@ export async function GET(req: NextRequest) {
     const userMap = new Map(users.map((u: any) => [u._id.toString(), u]));
 
     // Map the data to the expected format
-    const eventsWithUserDetails = events.map((event: any) => {
+    const eventsWithUserDetails = filteredEvents.map((event: any) => {
       const user = userMap.get(event.createdBy?.toString());
       return {
         ...event,

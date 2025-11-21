@@ -3,21 +3,35 @@
 import { useEffect, useState } from "react";
 import NotificationDialog from "./notificationsDialog";
 import { Bell, BellDot  } from "lucide-react";
-
-interface Notification {
-  message: string;
-  icon: string;
-}
+import {
+  StoredNotification,
+  getStoredNotifications,
+  persistNotifications,
+  NOTIFICATIONS_EVENT,
+} from "./notification-utils";
 
 export default function MyNotifications() {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<StoredNotification[]>([]);
 
   useEffect(() => {
-    const savedNotifications = localStorage.getItem("notifications");
-    if (savedNotifications) {
-      setNotifications(JSON.parse(savedNotifications));
-    }
+    setNotifications(getStoredNotifications());
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<StoredNotification[]>;
+      if (Array.isArray(customEvent.detail)) {
+        setNotifications(customEvent.detail);
+      } else {
+        setNotifications(getStoredNotifications());
+      }
+    };
+
+    window.addEventListener(NOTIFICATIONS_EVENT, handler);
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_EVENT, handler);
+    };
   }, []);
 
   const handleClick = () => {
@@ -25,16 +39,13 @@ export default function MyNotifications() {
   };
 
   const handleDelete = (index: number) => {
-    let updatedNotifications: Notification[];
-
-    if (index < 0) {
-      updatedNotifications = [];
-    } else {
-      updatedNotifications = notifications.filter((_, i) => i !== index);
-    }
+    const updatedNotifications =
+      index < 0
+        ? []
+        : notifications.filter((_, i) => i !== index);
 
     setNotifications(updatedNotifications);
-    localStorage.setItem("notifications", JSON.stringify(updatedNotifications));
+    persistNotifications(updatedNotifications);
   };
   const NotificationIcon = notifications.length > 0 ? BellDot : Bell;
   return (

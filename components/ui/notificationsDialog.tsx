@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -9,18 +11,20 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { Button } from "../ui/button";
-import { Trash, CalendarDays, CalendarHeart } from "lucide-react";
+import { Trash, CalendarDays, CalendarHeart, ShieldAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import MyNotifications from "./myNotifications";
+import { StoredNotification } from "./notification-utils";
 
-interface Notification {
-  message: string;
-}
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  CalendarDays,
+  CalendarHeart,
+  ShieldAlert,
+};
 
 interface NotificationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  notifications: Notification[];
+  notifications: StoredNotification[];
   onDelete: (index: number) => void;
 }
 
@@ -48,11 +52,11 @@ export default function NotificationDialog({
               notifications.map((notification, i) => (
                 <div key={i} className="mb-3 border-b pb-2 flex items-center justify-between text-gray-700">
                   <div className="flex items-center">
-                    {notification.message.startsWith("Joined") ? (
-                      <CalendarHeart className="mr-2 text-sky-800" />
-                    ) : (
-                      <CalendarDays className="mr-2 text-sky-800" />
-                    )}
+                    {(() => {
+                      const Icon =
+                        ICON_MAP[notification.icon ?? ""] ?? CalendarDays;
+                      return <Icon className="mr-2 text-sky-800" />;
+                    })()}
                     <span>{notification.message}</span>
                   </div>
                   <button onClick={() => onDelete(i)} className="text-red-500 hover:text-red-700">

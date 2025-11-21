@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { useSession } from "next-auth/react";
 import { CalendarPlus, ImagePlus } from "lucide-react";
+import { addNotificationToStorage } from "./notification-utils";
 
 export function CreateButtonNav() {
   return (
@@ -136,6 +137,14 @@ export default function CreateEvent({
     }
   }
 
+  function addFlaggedNotification(eventName: string) {
+    const flaggedMessage = `Event "${eventName}" was flagged for review. Only you can see it until it's updated or deleted.`;
+    addNotificationToStorage(
+      { message: flaggedMessage, icon: "ShieldAlert" },
+      { dedupeByMessage: true }
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -196,8 +205,18 @@ export default function CreateEvent({
       }
 
       const data = await response.json();
+      const moderationStatus = data.status as string | undefined;
+      const successMessage = eventToEdit
+        ? "Event updated successfully!"
+        : "Event created successfully!";
 
-      toast(eventToEdit ? "Event updated successfully!" : "Event created successfully!");
+      if (moderationStatus === "flagged") {
+        const flaggedMessage = `Event "${title || "Untitled event"}" was flagged for review and is only visible to you. Please revise or delete it.`;
+        toast(flaggedMessage);
+        addFlaggedNotification(title || "Untitled event");
+      } else {
+        toast(successMessage);
+      }
 
       if (onEventUpdated) {
         onEventUpdated(data.event);
