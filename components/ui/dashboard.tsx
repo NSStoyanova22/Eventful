@@ -192,7 +192,10 @@ export default function Dashboard() {
   };
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-10 text-white">
-      <section className="rounded-[32px] border border-white/10 bg-gradient-to-br from-blue-600/80 via-indigo-700/80 to-slate-900/80 px-8 py-10 shadow-[0_40px_120px_rgba(30,64,175,0.35)]">
+      <section
+        data-aos="fade-up"
+        className="rounded-[32px] border border-white/10 bg-gradient-to-br from-blue-600/80 via-indigo-700/80 to-slate-900/80 px-8 py-10 shadow-[0_40px_120px_rgba(30,64,175,0.35)]"
+      >
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="space-y-3">
             <p className="text-sm uppercase tracking-[0.6em] text-white/70">
@@ -238,9 +241,11 @@ export default function Dashboard() {
               value: filteredEvents.length,
               tone: "bg-white/60",
             },
-          ].map((stat) => (
+          ].map((stat, index) => (
             <div
               key={stat.label}
+              data-aos="zoom-in"
+              data-aos-delay={index * 80}
               className={`${stat.tone} rounded-2xl px-4 py-3 text-center shadow-lg shadow-slate-900/10`}
             >
               <p className="text-xs uppercase tracking-[0.4em] text-slate-500">
@@ -253,7 +258,10 @@ export default function Dashboard() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl">
+        <section
+          data-aos="fade-up"
+          className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white backdrop-blur-xl"
+        >
           <div className="mb-6 flex items-center justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.4em] text-blue-200/80">
@@ -312,7 +320,10 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl">
+        <section
+          data-aos="fade-up"
+          className="rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl"
+        >
           <div className="mb-6 flex items-center justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
@@ -378,7 +389,10 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <section className="rounded-[32px] border border-white/10 bg-white/5 p-8 text-white backdrop-blur-xl">
+      <section
+        data-aos="fade-up"
+        className="rounded-[32px] border border-white/10 bg-white/5 p-8 text-white backdrop-blur-xl"
+      >
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-3xl font-semibold">{t("explore")}</h2>
         </div>
@@ -393,7 +407,10 @@ export default function Dashboard() {
         )}
       </section>
 
-      <section className="rounded-[32px] border border-white/10 bg-white p-8 text-slate-900 shadow-2xl">
+      <section
+        data-aos="fade-up"
+        className="rounded-[32px] border border-white/10 bg-white p-8 text-slate-900 shadow-2xl"
+      >
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-3xl font-semibold text-slate-900">{t("hot")}</h2>
           <p className="text-sm text-slate-500">Most popular this week</p>

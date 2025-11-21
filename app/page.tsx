@@ -7,7 +7,10 @@ import Link from "next/link";
 
 function LandingHero() {
   return (
-    <section className="mx-auto flex max-w-5xl flex-col items-center gap-10 rounded-[32px] border border-white/10 bg-white/10 px-8 py-16 text-center shadow-[0_40px_120px_rgba(15,23,42,0.6)] backdrop-blur-xl">
+    <section
+      data-aos="fade-up"
+      className="mx-auto flex max-w-5xl flex-col items-center gap-10 rounded-[32px] border border-white/10 bg-white/10 px-8 py-16 text-center shadow-[0_40px_120px_rgba(15,23,42,0.6)] backdrop-blur-xl"
+    >
       <p className="text-sm uppercase tracking-[0.6em] text-blue-200/80">
         Eventful
       </p>
@@ -34,7 +37,10 @@ export default function Home() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 px-4 py-12">
+      <main
+        data-aos="fade-up"
+        className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 px-4 py-12"
+      >
         {session ? <Dashboard /> : <LandingHero />}
       </main>
     </>

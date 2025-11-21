@@ -289,7 +289,10 @@ export default function EventDetails() {
       <Navbar />
       <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 px-4 py-12 text-white">
         <div className="mx-auto flex max-w-5xl flex-col gap-8">
-          <section className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/40 shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
+          <section
+            data-aos="fade-up"
+            className="overflow-hidden rounded-[32px] border border-white/10 bg-slate-900/40 shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl"
+          >
             <div className="relative h-72 w-full">
               <img
                 src={heroImage}
@@ -314,7 +317,7 @@ export default function EventDetails() {
             </div>
 
             <div className="grid gap-8 p-8 lg:grid-cols-[2fr_1fr]">
-              <div className="space-y-6">
+              <div data-aos="fade-up" className="space-y-6">
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                   <p className="text-sm uppercase tracking-[0.4em] text-white/60">
                     Overview
@@ -354,7 +357,10 @@ export default function EventDetails() {
                 </div>
               </div>
 
-              <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+              <div
+                data-aos="fade-left"
+                className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6"
+              >
               {!isHost ? (
                 <>
                 <p className="text-sm uppercase tracking-[0.4em] text-white/60">
@@ -426,7 +432,10 @@ export default function EventDetails() {
               
             </div>
           </section>
-          <section className="rounded-[32px] border border-white/10 bg-slate-900/40 p-8 shadow-[0_25px_90px_rgba(15,23,42,0.35)]">
+          <section
+            data-aos="fade-up"
+            className="rounded-[32px] border border-white/10 bg-slate-900/40 p-8 shadow-[0_25px_90px_rgba(15,23,42,0.35)]"
+          >
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.5em] text-white/60">
@@ -444,9 +453,11 @@ export default function EventDetails() {
                   Be the first to share your thoughts about this event.
                 </p>
               ) : (
-                comments.map((comment) => (
+                comments.map((comment, index) => (
                   <div
                     key={comment._id}
+                    data-aos="fade-up"
+                    data-aos-delay={index * 70}
                     className="flex gap-4 rounded-3xl border border-white/10 bg-white/5 p-4"
                   >
                     <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border border-white/10">
@@ -475,7 +486,10 @@ export default function EventDetails() {
               )}
             </div>
 
-            <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div
+              data-aos="fade-up"
+              className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-5"
+            >
               {session?.user ? (
                 <>
                   <p className="text-sm uppercase tracking-[0.4em] text-white/60">

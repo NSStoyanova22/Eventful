@@ -82,7 +82,10 @@ export default function Register() {
   return (
     <>
       <div className="flex justify-center items-center min-h-screen bg-slate-700 p-5">
-        <div className="bg-slate-100 rounded-2xl shadow-lg p-10 max-w-md w-full">
+        <div
+          data-aos="fade-up"
+          className="bg-slate-100 rounded-2xl shadow-lg p-10 max-w-md w-full"
+        >
           <Form {...form}>
             <form onSubmit={handleSubmit} className="space-y-4">
               <h1 className="font-bold text-2xl text-center">Log in</h1>

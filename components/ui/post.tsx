@@ -169,7 +169,10 @@ export default function Post({ post, hideComment }: PostProps) {
     : "";
 
   return (
-    <div className="group relative mb-6 overflow-hidden rounded-[26px] border border-white/10 bg-white/95 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.15)] transition hover:-translate-y-1 hover:shadow-[0_35px_90px_rgba(15,23,42,0.25)]">
+    <div
+      data-aos="fade-up"
+      className="group relative mb-6 overflow-hidden rounded-[26px] border border-white/10 bg-white/95 p-6 shadow-[0_25px_70px_rgba(15,23,42,0.15)] transition hover:-translate-y-1 hover:shadow-[0_35px_90px_rgba(15,23,42,0.25)]"
+    >
       <div className="space-y-5">
         <div className="relative overflow-hidden rounded-3xl border border-slate-100/40 bg-slate-900/5">
           {post.image ? (
@@ -252,7 +255,10 @@ export default function Post({ post, hideComment }: PostProps) {
             </button>
 
             {showComments && (
-              <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+              <div
+                data-aos="fade-up"
+                className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4"
+              >
                 <div className="max-h-40 overflow-y-auto space-y-3">
                   {comments.length > 0 ? (
                     comments.map((comment) => (
