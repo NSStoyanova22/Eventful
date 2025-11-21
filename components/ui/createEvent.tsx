@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useSession } from "next-auth/react";
@@ -231,12 +233,12 @@ export default function CreateEvent({
     <p className="text-xs uppercase tracking-[0.5em] text-blue-200/70">
       {eventToEdit ? "Update event" : "New event"} {/* show update or new based on editing state */}
     </p>
-    <h2 className="text-3xl font-semibold">
+    <DialogTitle className="text-3xl font-semibold text-white">
       {eventToEdit ? "Refresh the experience" : "Design a new moment"} {/* main title */}
-    </h2>
-    <p className="text-sm text-white/70">
+    </DialogTitle>
+    <DialogDescription className="text-sm text-white/70">
       This is a {isEventPublic ? "public" : "private"} event {/* display event privacy */}
-    </p>
+    </DialogDescription>
   </div>
 
   <div className="space-y-4">

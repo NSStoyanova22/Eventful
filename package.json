@@ -22,6 +22,7 @@
     "@react-oauth/google": "^0.12.1",
     "aos": "^2.3.4",
     "axios": "^1.8.1",
+    "bad-words": "^4.0.0",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -64,7 +65,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^9.39.1",
-    "eslint-config-next": "^16.0.3",
+    "eslint-config-next": "16.0.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.4"

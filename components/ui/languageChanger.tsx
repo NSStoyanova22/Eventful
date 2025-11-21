@@ -15,8 +15,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "./button";
@@ -28,14 +26,20 @@ export default function LanguageChanger() {
         <>
         
             <DropdownMenu>
-                <DropdownMenuTrigger>
-                <Button variant="outline">{t("change_language")}</Button>
-                   </DropdownMenuTrigger>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline">{t("change_language")}</Button>
+                </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                    
-                    <DropdownMenuItem><button onClick={() => i18n.changeLanguage("en")}>English</button></DropdownMenuItem>
-                    <DropdownMenuItem><button onClick={() => i18n.changeLanguage("bg")}>Български</button></DropdownMenuItem>
-
+                    <DropdownMenuItem
+                        onSelect={() => i18n.changeLanguage("en")}
+                    >
+                        English
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={() => i18n.changeLanguage("bg")}
+                    >
+                        Български
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
                           {/* <button onClick={() => i18n.changeLanguage("en")}>🇬🇧 English</button>

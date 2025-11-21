@@ -2,37 +2,76 @@ import { connect } from "@/app/config/dbConfig";
 import Event from "@/app/models/event";
 import User from "@/app/models/user";
 import { NextRequest, NextResponse } from "next/server";
-
+import moderateText from "../../lib/moderate";
+import mongoose from "mongoose";
 
 export async function POST(req: NextRequest) {
-  await connect();
-
   try {
+    await connect();
+
     if (!req.headers.get("content-type")?.includes("multipart/form-data")) {
-      return NextResponse.json({ error: "Invalid content type" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid content type" },
+        { status: 400 }
+      );
     }
 
     const formData = await req.formData();
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
-    const startDate = formData.get("startDate") as string;
-    const endDate = formData.get("endDate") as string;
-    const isPublic = JSON.parse(formData.get("isPublic") as string);
-    const guestLimit = parseInt(formData.get("guestLimit") as string, 10);
-    const attending = parseInt(formData.get("attending") as string, 10);
-    const userId = formData.get("userId") as string;
+    const title = formData.get("title");
+    const description = formData.get("description");
+    const startDate = formData.get("startDate");
+    const endDate = formData.get("endDate");
+    const isPublicRaw = formData.get("isPublic");
+    const guestLimitRaw = formData.get("guestLimit");
+    const attendingRaw = formData.get("attending");
+    const userId = formData.get("userId");
 
-    if (!title || !description || !startDate || !endDate || !userId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (
+      typeof title !== "string" ||
+      typeof description !== "string" ||
+      typeof startDate !== "string" ||
+      typeof endDate !== "string" ||
+      typeof userId !== "string" ||
+      !title.trim() ||
+      !description.trim() ||
+      !startDate.trim() ||
+      !endDate.trim() ||
+      !userId.trim()
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json(
+        { error: "Invalid user identifier" },
+        { status: 400 }
+      );
+    }
+
+    const isPublic =
+      typeof isPublicRaw === "string" ? JSON.parse(isPublicRaw) : false;
+    const guestLimit = Number.parseInt(
+      typeof guestLimitRaw === "string" ? guestLimitRaw : "0",
+      10
+    );
+    const attending = Number.parseInt(
+      typeof attendingRaw === "string" ? attendingRaw : "0",
+      10
+    );
 
     const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    
-    const moderationStatus = "approved";
+    const moderationStatus = !moderateText(description).allowed
+      ? "flagged"
+      : !moderateText(title).allowed
+      ? "flagged"
+      : "approved";
 
     let imageUrl = "";
     const imageBase64 = formData.get("imageBase64");
@@ -40,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     if (typeof imageBase64 === "string" && imageBase64.trim().length > 0) {
       imageUrl = imageBase64;
-    } else if (file instanceof File) {
+    } else if (typeof File !== "undefined" && file instanceof File) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       const mimeType = file.type || "image/jpeg";
@@ -54,8 +93,8 @@ export async function POST(req: NextRequest) {
       endDate,
       image: imageUrl,
       isPublic,
-      guestLimit,
-      attending,
+      guestLimit: Number.isFinite(guestLimit) ? guestLimit : 0,
+      attending: Number.isFinite(attending) ? attending : 0,
       createdBy: userId,
       createdByName: user.username,
       status: moderationStatus,
@@ -71,7 +110,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error creating event:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "Failed to create event" },
+      { status: 500 }
+    );
   }
 }
 
