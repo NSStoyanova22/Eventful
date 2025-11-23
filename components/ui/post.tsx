@@ -5,7 +5,7 @@ import { DateTime } from "luxon";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { CalendarDays, Clock, Users } from "lucide-react";
+import { CalendarDays, Clock, Share2, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ConfirmModal from "./confirm-modal";
 import axios from "axios";
@@ -176,6 +176,37 @@ export default function Post({ post, hideComment }: PostProps) {
   };
   
 
+  const shareEvent = async () => {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ??
+      (typeof window !== "undefined" ? window.location.origin : "");
+    const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${post._id}`;
+    const message = `Join me at "${post.title}" on Eventful: ${eventUrl}`;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = message;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      toast("Event link copied!", {
+        description: "Share it with your friends.",
+        icon: <Share2 className="h-4 w-4" />,
+      });
+    } catch (error) {
+      console.error("Failed to copy event link:", error);
+      toast.error("Unable to copy event link");
+    }
+  };
+
   const startDate = DateTime.fromISO(post.startDate);
   const readableDate = startDate.isValid
     ? startDate.toLocaleString(DateTime.DATE_MED)
@@ -254,11 +285,20 @@ export default function Post({ post, hideComment }: PostProps) {
               </p>
             </div>
           </div>
-          <Link href={`/events/${post._id.toString()}`}>
-            <button className="rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5">
-              {t("moreinfo")}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={shareEvent}
+              className="inline-flex items-center gap-2 rounded-full border border-blue-100 px-4 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
+            >
+              <Share2 className="h-4 w-4" />
+              Share
             </button>
-          </Link>
+            <Link href={`/events/${post._id.toString()}`}>
+              <button className="rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5">
+                {t("moreinfo")}
+              </button>
+            </Link>
+          </div>
         </div>
 
         {!hideComment && (

@@ -6,7 +6,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { CalendarDays, ArrowLeft, PencilLine, ShieldAlert, Trash2 } from "lucide-react";
+import { CalendarDays, ArrowLeft, PencilLine, ShieldAlert, Share2, Trash2 } from "lucide-react";
 import Navbar from "@/components/ui/navigation-menu";
 import { useUser } from "@/app/contexts/UserContext";
 import { useEvents } from "@/app/contexts/EventsContext";
@@ -339,6 +339,35 @@ export default function EventDetails() {
     }
   };
 
+  const shareCurrentEvent = async () => {
+    if (!event?._id) return;
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ??
+      (typeof window !== "undefined" ? window.location.origin : "");
+    const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${event._id}`;
+    const message = `Join me at "${event.title}" on Eventful: ${eventUrl}`;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = message;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      toast("Event link copied!");
+    } catch (error) {
+      console.error("Failed to copy event link:", error);
+      toast.error("Unable to copy event link");
+    }
+  };
+
   if (error) {
     return <div>{error}</div>;
   }
@@ -425,21 +454,25 @@ export default function EventDetails() {
                   Eventful
                 </p>
                 <h1 className="text-4xl font-semibold">{event.title}</h1>
-                <div className="flex flex-wrap gap-3 text-sm text-white/80">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-white/80">
                   <span className="rounded-full bg-white/10 px-4 py-1">
                     {formattedDate}
                   </span>
                   <span className="rounded-full bg-white/10 px-4 py-1">
                     {formattedTime}
                   </span>
-                  {event.status === "flagged" ? (
-                  
-                    <span
-                      className="rounded-full px-4 py-1 text-xs font-semibold bg-amber-500/30 text-amber-100"
-                    >
+                  {event.status === "flagged" && (
+                    <span className="rounded-full bg-amber-500/30 px-4 py-1 text-xs font-semibold text-amber-100">
                       Status: {event.status}
                     </span>
-                  ) : null}
+                  )}
+                  <button
+                    onClick={shareCurrentEvent}
+                    className="ml-auto inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share
+                  </button>
                 </div>
               </div>
             </div>
