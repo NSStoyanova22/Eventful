@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/ui/navigation-menu";
 import { DateTime } from 'luxon';
-import React, { use, useCallback, useEffect, useState, useRef } from "react";
+import React, { use, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import ProfilePost from "@/components/ui/post";
 import { signOut } from "next-auth/react"
 import Link from "next/link";
@@ -27,6 +27,16 @@ type CountryOption = {
   name: string;
   region: string;
   subregion: string;
+};
+
+type CalendarHighlight = {
+  id: string;
+  date: Date;
+  title: string;
+  time?: string;
+  description?: string;
+  href?: string;
+  role?: string;
 };
 
 export default function UserProfile() {
@@ -229,6 +239,34 @@ export default function UserProfile() {
   else if (eventCounter >= 15) {
     userStatus = "Legend";
   }
+
+  const calendarHighlights = useMemo<CalendarHighlight[]>(() => {
+    const map = new Map<string, any>();
+    const combined = [...filteredEvents, ...attendingEvents];
+
+    combined.forEach((event: any) => {
+      if (!event?._id || map.has(event._id)) return;
+      map.set(event._id, event);
+    });
+
+    return Array.from(map.values())
+      .map((event: any) => {
+        if (!event?.startDate) return null;
+        const start = new Date(event.startDate);
+        if (isNaN(start.getTime())) return null;
+
+        return {
+          id: event._id,
+          date: start,
+          title: event.title || "Untitled event",
+          time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          description: event.description?.slice(0, 100),
+          href: `/events/${event._id}`,
+          role: isEventCreatedByCurrentUser(event) ? "Hosting" : "Attending",
+        } satisfies CalendarHighlight;
+      })
+      .filter(Boolean) as CalendarHighlight[];
+  }, [filteredEvents, attendingEvents]);
 
 
 
@@ -503,6 +541,7 @@ export default function UserProfile() {
                 mode="single"
                 selected={date}
                 onSelect={setDate}
+                highlightedEvents={calendarHighlights}
                 className="rounded-lg border border-white/10 bg-white/85 backdrop-blur-xl p-5 shadow-2xl text-sm font-medium text-indigo-700"
               />
             </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import * as React from "react"
 import {
   ChevronDownIcon,
@@ -11,6 +12,18 @@ import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 import { cn } from "@/app/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 
+type HighlightedEventInput = {
+  id?: string
+  date: Date | string
+  title: string
+  time?: string
+  description?: string
+  href?: string
+  role?: string
+}
+
+type HighlightedEventByDay = Omit<HighlightedEventInput, "date">
+
 function Calendar({
   className,
   classNames,
@@ -19,11 +32,51 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  highlightedEvents,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
+  highlightedEvents?: HighlightedEventInput[]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const eventsByDate = React.useMemo(() => {
+    const map = new Map<string, HighlightedEventByDay[]>()
+    if (!highlightedEvents?.length) return map
+
+    for (const event of highlightedEvents) {
+      const date = new Date(event.date)
+      if (Number.isNaN(date.getTime())) continue
+      const key = date.toISOString().split("T")[0]
+      const current = map.get(key) ?? []
+      current.push({
+        id: event.id,
+        title: event.title,
+        time: event.time,
+        description: event.description,
+        href: event.href,
+        role: event.role,
+      })
+      map.set(key, current)
+    }
+
+    return map
+  }, [highlightedEvents])
+
+  const DayButtonWithHighlights = React.useCallback(
+    (dayButtonProps: React.ComponentProps<typeof DayButton>) => {
+      const isoDate = dayButtonProps.day?.date
+        ? dayButtonProps.day.date.toISOString().split("T")[0]
+        : undefined
+      const eventsForDay = isoDate ? eventsByDate.get(isoDate) : undefined
+      return (
+        <CalendarDayButton
+          {...dayButtonProps}
+          highlightedEvents={eventsForDay}
+        />
+      )
+    },
+    [eventsByDate]
+  )
 
   return (
     <DayPicker
@@ -155,7 +208,7 @@ function Calendar({
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
           )
         },
-        DayButton: CalendarDayButton,
+        DayButton: DayButtonWithHighlights,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -176,8 +229,11 @@ function CalendarDayButton({
   className,
   day,
   modifiers,
+  highlightedEvents,
   ...props
-}: React.ComponentProps<typeof DayButton>) {
+}: React.ComponentProps<typeof DayButton> & {
+  highlightedEvents?: HighlightedEventByDay[]
+}) {
   const defaultClassNames = getDefaultClassNames()
 
   const ref = React.useRef<HTMLButtonElement>(null)
@@ -185,28 +241,77 @@ function CalendarDayButton({
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
 
+  const hasEvents = Boolean(highlightedEvents?.length)
+
   return (
-    <Button
-      ref={ref}
-      variant="ghost"
-      size="icon"
-      data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
-      }
-      data-range-start={modifiers.range_start}
-      data-range-end={modifiers.range_end}
-      data-range-middle={modifiers.range_middle}
-      className={cn(
-        "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 flex aspect-square h-auto w-full min-w-[--cell-size] flex-col gap-1 font-normal leading-none data-[range-end=true]:rounded-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] [&>span]:text-xs [&>span]:opacity-70",
-        defaultClassNames.day,
-        className
+    <div className="group relative flex items-center justify-center">
+      <Button
+        ref={ref}
+        variant="ghost"
+        size="icon"
+        data-day={day.date.toLocaleDateString()}
+        data-selected-single={
+          modifiers.selected &&
+          !modifiers.range_start &&
+          !modifiers.range_end &&
+          !modifiers.range_middle
+        }
+        data-range-start={modifiers.range_start}
+        data-range-end={modifiers.range_end}
+        data-range-middle={modifiers.range_middle}
+        className={cn(
+          "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 flex aspect-square h-auto w-full min-w-[--cell-size] flex-col gap-1 font-normal leading-none data-[range-end=true]:rounded-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] [&>span]:text-xs [&>span]:opacity-70",
+          hasEvents
+            ? "border border-blue-400/40 bg-blue-500/15 text-blue-100 hover:bg-blue-500/25"
+            : "",
+          defaultClassNames.day,
+          className
+        )}
+        {...props}
+      />
+      {hasEvents && (
+        <div className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-3 w-60 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-white opacity-0 shadow-2xl transition group-hover:visible group-hover:opacity-100">
+          <p className="text-xs uppercase tracking-[0.4em] text-white/60">
+            {highlightedEvents.length > 1
+              ? `${highlightedEvents.length} events`
+              : "Event"}
+          </p>
+          <div className="mt-2 space-y-3">
+            {highlightedEvents.map((event) => (
+              <div
+                key={`${event.id}-${event.title}`}
+                className="pointer-events-auto rounded-xl border border-white/10 bg-white/5 p-3 text-sm"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-white">{event.title}</p>
+                  {event.role && (
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/70">
+                      {event.role}
+                    </span>
+                  )}
+                </div>
+                {event.time && (
+                  <p className="text-xs text-white/70 mt-1">{event.time}</p>
+                )}
+                {event.description && (
+                  <p className="mt-1 text-xs text-white/60 line-clamp-3">
+                    {event.description}
+                  </p>
+                )}
+                {event.href && (
+                  <Link
+                    href={event.href}
+                    className="mt-2 inline-flex items-center text-xs font-semibold text-blue-300 hover:text-blue-200"
+                  >
+                    View event →
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-      {...props}
-    />
+    </div>
   )
 }
 
