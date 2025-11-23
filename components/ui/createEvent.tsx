@@ -12,6 +12,45 @@ import { useSession } from "next-auth/react";
 import { CalendarPlus, ImagePlus } from "lucide-react";
 import { addNotificationToStorage } from "./notification-utils";
 
+type CategoryRule = {
+  name: string;
+  regex: RegExp;
+  overpass: {
+    key: string;
+    value: string;
+  };
+};
+
+const CATEGORY_RULES: CategoryRule[] = [
+  {
+    name: "Music",
+    regex: /(concert|music|dj|karaoke|band|gig)/i,
+    overpass: { key: "amenity", value: "nightclub" },
+  },
+  {
+    name: "Food & Drink",
+    regex: /(dinner|brunch|tasting|food|restaurant|wine|cocktail|coffee)/i,
+    overpass: { key: "amenity", value: "restaurant" },
+  },
+  {
+    name: "Sports",
+    regex: /(match|game|tournament|yoga|run|football|basketball|tennis|sport)/i,
+    overpass: { key: "leisure", value: "pitch" },
+  },
+  {
+    name: "Art & Culture",
+    regex: /(art|gallery|museum|exhibit|culture|theatre|theater)/i,
+    overpass: { key: "tourism", value: "museum" },
+  },
+  {
+    name: "Tech & Business",
+    regex: /(startup|tech|coding|developer|business|networking|conference|meetup)/i,
+    overpass: { key: "office", value: "it" },
+  },
+];
+
+type Coordinates = { lat: number; lon: number };
+
 export function CreateButtonNav() {
   return (
     <Dialog>
@@ -78,6 +117,13 @@ export default function CreateEvent({
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [detectedCategory, setDetectedCategory] = useState<CategoryRule | null>(null);
+  const [titlePlaceSuggestions, setTitlePlaceSuggestions] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [isFetchingTitleSuggestions, setIsFetchingTitleSuggestions] = useState(false);
+  const [titleSuggestionError, setTitleSuggestionError] = useState<string | null>(null);
   const [isPeopleLimitChecked, setIsPeopleLimitChecked] = useState(false);
   const [guestLimit, setGuestLimit] = useState<number>(0);
   const [isEventPublic, setIsEventPublic] = useState(false);
@@ -109,6 +155,15 @@ export default function CreateEvent({
       setIsEventPublic(eventToEdit.isPublic || false);
     }
   }, [eventToEdit]);
+
+  useEffect(() => {
+    if (!title) {
+      setDetectedCategory(null);
+      return;
+    }
+    const match = CATEGORY_RULES.find((rule) => rule.regex.test(title));
+    setDetectedCategory(match ?? null);
+  }, [title]);
 
   function handleGuestChange(e: React.ChangeEvent<HTMLInputElement>) {
     setIsPeopleLimitChecked(e.target.checked);
@@ -151,62 +206,161 @@ export default function CreateEvent({
     );
   }
 
-  function requestLocationSuggestions() {
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported in this browser.");
+  function getCurrentPosition(): Promise<Coordinates> {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation is not supported in this browser."));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+          };
+          setUserCoordinates(coords);
+          resolve(coords);
+        },
+        (error) => reject(error),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  }
+
+  async function requestLocationSuggestions() {
+    setIsLocating(true);
+    try {
+      const coords = userCoordinates || (await getCurrentPosition());
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lon}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch location details");
+      }
+      const data = await response.json();
+      const address = data.address || {};
+      const suggestions = [
+        [address.road, address.neighbourhood, address.city].filter(Boolean).join(", "),
+        [address.city || address.town || address.village, address.state]
+          .filter(Boolean)
+          .join(", "),
+        data.display_name,
+        `Near (${coords.lat.toFixed(3)}, ${coords.lon.toFixed(3)})`,
+      ]
+        .filter((entry) => entry && entry.trim().length > 0)
+        .filter((value, index, arr) => arr.indexOf(value) === index);
+
+      setLocationSuggestions(suggestions as string[]);
+      setLocationError(null);
+      if (!location && suggestions.length > 0) {
+        setLocation(suggestions[0] as string);
+      }
+    } catch (geoError: any) {
+      console.error("Failed to resolve location:", geoError);
+      setLocationSuggestions([
+        userCoordinates
+          ? `Near coordinates (${userCoordinates.lat.toFixed(3)}, ${userCoordinates.lon.toFixed(
+              3
+            )})`
+          : "Unable to determine coordinates",
+      ]);
+      setLocationError(
+        geoError?.message || "Could not determine exact address. Using coordinates instead."
+      );
+    } finally {
+      setIsLocating(false);
+    }
+  }
+
+  function calculateDistance(
+    from: Coordinates,
+    to: { lat: number; lon: number }
+  ): number {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const R = 6371; // km
+    const dLat = toRad(to.lat - from.lat);
+    const dLon = toRad(to.lon - from.lon);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(from.lat)) *
+        Math.cos(toRad(to.lat)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  async function fetchTitleBasedSuggestions() {
+    if (!detectedCategory) {
+      toast("Add more details to the title so we can detect a category.");
       return;
     }
 
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch location details");
-          }
-          const data = await response.json();
-          const address = data.address || {};
-          const suggestions = [
-            [address.road, address.neighbourhood, address.city]
-              .filter(Boolean)
-              .join(", "),
-            [address.city || address.town || address.village, address.state]
-              .filter(Boolean)
-              .join(", "),
-            data.display_name,
-            `Near (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`,
-          ]
-            .filter((entry) => entry && entry.trim().length > 0)
-            .filter((value, index, arr) => arr.indexOf(value) === index);
+    setIsFetchingTitleSuggestions(true);
+    try {
+      const coords = userCoordinates || (await getCurrentPosition());
+      const query = `
+        [out:json][timeout:25];
+        (
+          node["${detectedCategory.overpass.key}"="${detectedCategory.overpass.value}"](around:5000,${coords.lat},${coords.lon});
+          way["${detectedCategory.overpass.key}"="${detectedCategory.overpass.value}"](around:5000,${coords.lat},${coords.lon});
+          relation["${detectedCategory.overpass.key}"="${detectedCategory.overpass.value}"](around:5000,${coords.lat},${coords.lon});
+        );
+        out center;
+      `;
+      const encoded = encodeURIComponent(query);
+      const response = await fetch(
+        `https://overpass-api.de/api/interpreter?data=${encoded}`
+      );
 
-          setLocationSuggestions(suggestions as string[]);
-          setLocationError(null);
-          if (!location && suggestions.length > 0) {
-            setLocation(suggestions[0] as string);
-          }
-        } catch (geoError) {
-          console.error("Failed to resolve location:", geoError);
-          setLocationSuggestions([
-            `Near coordinates (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`,
-          ]);
-          setLocationError(
-            "Could not determine exact address. Using coordinates instead."
-          );
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      (geoError) => {
-        console.error("Geolocation error:", geoError);
-        setLocationError("Unable to access your location.");
-        setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+      if (!response.ok) {
+        throw new Error("Failed to fetch suggested places");
+      }
+
+      const data = await response.json();
+      const elements = Array.isArray(data?.elements) ? data.elements : [];
+
+      const places = elements
+        .map((element: any) => {
+          const elementCoords = {
+            lat: element.lat ?? element.center?.lat,
+            lon: element.lon ?? element.center?.lon,
+          };
+          if (!elementCoords.lat || !elementCoords.lon) return null;
+
+          const distance = calculateDistance(coords, elementCoords);
+          const name =
+            element.tags?.name ||
+            element.tags?.["addr:street"] ||
+            detectedCategory.name;
+          const descriptionParts = [
+            name,
+            element.tags?.["addr:street"],
+            element.tags?.city || element.tags?.["addr:city"],
+          ].filter(Boolean);
+
+          return {
+            label: `${name} • ${distance.toFixed(1)} km away`,
+            value: descriptionParts.join(", "),
+            distance,
+          };
+        })
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.distance - b.distance)
+        .slice(0, 5) as { label: string; value: string }[];
+
+      if (!places.length) {
+        setTitleSuggestionError("No nearby places found for this category.");
+      } else {
+        setTitleSuggestionError(null);
+      }
+      setTitlePlaceSuggestions(places);
+    } catch (error: any) {
+      console.error("Error fetching title-based suggestions:", error);
+      setTitleSuggestionError(error?.message || "Failed to fetch suggestions.");
+    } finally {
+      setIsFetchingTitleSuggestions(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -359,35 +513,72 @@ export default function CreateEvent({
               }
             }}
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={requestLocationSuggestions}
-              disabled={isLocating}
-              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white/90 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLocating ? "Finding nearby places..." : "Suggest near me"}
-            </button>
-            {locationError && (
-              <span className="text-xs text-red-200">{locationError}</span>
-            )}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={requestLocationSuggestions}
+            disabled={isLocating}
+            className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white/90 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLocating ? "Finding nearby places..." : "Suggest near me"}
+          </button>
+          <button
+            type="button"
+            onClick={fetchTitleBasedSuggestions}
+            disabled={isFetchingTitleSuggestions || !detectedCategory}
+            className="rounded-full border border-emerald-300/40 px-4 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isFetchingTitleSuggestions
+              ? "Searching nearby venues..."
+              : "Suggest based on title"}
+          </button>
+          {locationError && (
+            <span className="text-xs text-red-200">{locationError}</span>
+          )}
+          {detectedCategory && (
+            <span className="text-xs text-emerald-200">
+              Detected category: {detectedCategory.name}
+            </span>
+          )}
+        </div>
+        {locationSuggestions.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {locationSuggestions.map((suggestion) => (
+              <button
+                type="button"
+                key={suggestion}
+                onClick={() => setLocation(suggestion)}
+                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 transition hover:bg-white/10"
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
-          {locationSuggestions.length > 0 && (
+        )}
+        {titleSuggestionError && (
+          <p className="text-xs text-amber-200">{titleSuggestionError}</p>
+        )}
+        {titlePlaceSuggestions.length > 0 && (
+          <div className="rounded-2xl border border-emerald-200/20 bg-emerald-900/10 p-3 text-xs text-emerald-50">
+            <p className="mb-2 font-semibold uppercase tracking-[0.3em] text-emerald-200">
+              Suggested venues
+            </p>
             <div className="flex flex-wrap gap-2">
-              {locationSuggestions.map((suggestion) => (
+              {titlePlaceSuggestions.map((place) => (
                 <button
                   type="button"
-                  key={suggestion}
-                  onClick={() => setLocation(suggestion)}
-                  className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 transition hover:bg-white/10"
+                  key={place.label}
+                  onClick={() => setLocation(place.value || place.label)}
+                  className="rounded-xl border border-emerald-300/30 bg-white/5 px-3 py-1 text-left text-[11px] text-white/90 transition hover:bg-white/20"
                 >
-                  {suggestion}
+                  {place.label}
                 </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+    </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
