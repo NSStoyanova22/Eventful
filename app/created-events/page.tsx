@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/ui/navigation-menu";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 
 interface Event {
   _id: string;
@@ -140,6 +140,10 @@ export default function CreatedEvents() {
                       
                       <p className="mt-2 line-clamp-2 text-sm text-white/70">
                         {event.description}
+                      </p>
+                      <p className="mt-2 flex items-center gap-2 text-xs text-white/60">
+                        <MapPin className="h-3.5 w-3.5 text-blue-200" />
+                        {event.location || "Location TBA"}
                       </p>
                       
                       <div className="mt-4 flex items-center justify-between">

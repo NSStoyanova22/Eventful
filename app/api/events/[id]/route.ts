@@ -49,6 +49,8 @@ export async function PUT(request: Request, { params }: any) {
       formData.get("startDate")?.toString() ?? existingEvent.startDate;
     const endDate =
       formData.get("endDate")?.toString() ?? existingEvent.endDate;
+    const location =
+      formData.get("location")?.toString() ?? existingEvent.location;
     const isPublic = formData.has("isPublic")
       ? JSON.parse(formData.get("isPublic")?.toString() || "false")
       : existingEvent.isPublic;
@@ -67,6 +69,7 @@ export async function PUT(request: Request, { params }: any) {
       {
         title,
         description,
+        location,
         startDate,
         endDate,
         isPublic,

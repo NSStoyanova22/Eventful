@@ -12,6 +12,11 @@ const eventSchema = new mongoose.Schema(
   {
     title: String,
     description: String,
+    location: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     startDate: Date,
     endDate: Date,
     image: String,

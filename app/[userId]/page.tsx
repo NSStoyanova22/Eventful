@@ -255,12 +255,13 @@ export default function UserProfile() {
         const start = new Date(event.startDate);
         if (isNaN(start.getTime())) return null;
 
+        const locationSnippet = event.location ? `${event.location} · ` : "";
         return {
           id: event._id,
           date: start,
           title: event.title || "Untitled event",
           time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          description: event.description?.slice(0, 100),
+          description: `${locationSnippet}${event.description?.slice(0, 100) ?? ""}`.trim(),
           href: `/events/${event._id}`,
           role: isEventCreatedByCurrentUser(event) ? "Hosting" : "Attending",
         } satisfies CalendarHighlight;

@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     const guestLimitRaw = formData.get("guestLimit");
     const attendingRaw = formData.get("attending");
     const userId = formData.get("userId");
+    const location = formData.get("location");
 
     if (
       typeof title !== "string" ||
@@ -34,11 +35,13 @@ export async function POST(req: NextRequest) {
       typeof startDate !== "string" ||
       typeof endDate !== "string" ||
       typeof userId !== "string" ||
+      typeof location !== "string" ||
       !title.trim() ||
       !description.trim() ||
       !startDate.trim() ||
       !endDate.trim() ||
-      !userId.trim()
+      !userId.trim() ||
+      !location.trim()
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -91,6 +94,7 @@ export async function POST(req: NextRequest) {
     const newEvent = new Event({
       title,
       description,
+      location: location.trim(),
       startDate,
       endDate,
       image: imageUrl,

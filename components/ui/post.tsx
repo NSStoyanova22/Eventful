@@ -5,7 +5,7 @@ import { DateTime } from "luxon";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { CalendarDays, Clock, Share2, Users } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Share2, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ConfirmModal from "./confirm-modal";
 import axios from "axios";
@@ -17,6 +17,7 @@ interface PostProps {
     title: string;
     startDate: string;
     description: string;
+    location?: string;
     image?: string;
     createdByImage?: string;
     createdByName?: string;
@@ -181,7 +182,8 @@ export default function Post({ post, hideComment }: PostProps) {
       process.env.NEXT_PUBLIC_BASE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");
     const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${post._id}`;
-    const message = `Join me at "${post.title}" on Eventful: ${eventUrl}`;
+    const locationLine = post.location ? ` at ${post.location}` : "";
+    const message = `Join me at "${post.title}"${locationLine} on Eventful: ${eventUrl}`;
 
     try {
       if (navigator?.clipboard?.writeText) {
@@ -260,16 +262,22 @@ export default function Post({ post, hideComment }: PostProps) {
             </span>
           </div>
           <p className="text-slate-500">{post.description}</p>
-          <div className="flex flex-wrap gap-3 text-sm text-slate-500">
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-              <CalendarDays className="h-4 w-4 text-blue-600" />
-              {readableDate}
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-              <Clock className="h-4 w-4 text-purple-600" />
-              {readableTime}
-            </div>
+        <div className="flex flex-wrap gap-3 text-sm text-slate-500">
+          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+            <CalendarDays className="h-4 w-4 text-blue-600" />
+            {readableDate}
           </div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+            <Clock className="h-4 w-4 text-purple-600" />
+            {readableTime}
+          </div>
+          {post?.location && (
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+              <MapPin className="h-4 w-4 text-emerald-600" />
+              <span className="truncate max-w-[150px]">{post.location}</span>
+            </div>
+          )}
+        </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4">

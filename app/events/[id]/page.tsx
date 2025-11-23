@@ -6,7 +6,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { CalendarDays, ArrowLeft, PencilLine, ShieldAlert, Share2, Trash2 } from "lucide-react";
+import { CalendarDays, ArrowLeft, MapPin, PencilLine, ShieldAlert, Share2, Trash2 } from "lucide-react";
 import Navbar from "@/components/ui/navigation-menu";
 import { useUser } from "@/app/contexts/UserContext";
 import { useEvents } from "@/app/contexts/EventsContext";
@@ -27,6 +27,7 @@ interface Event {
   title: string;
   createdBy?: string;
   createdByName?: string;
+  location?: string;
   startDate: string;
   endDate?: string;
   status?: string;
@@ -150,6 +151,7 @@ export default function EventDetails() {
       _id: event._id,
       title: event.title,
       description: event.description,
+      location: event.location,
       startDate: event.startDate,
       endDate: event.endDate ?? event.startDate,
       guestLimit: (event as any)?.guestLimit ?? 0,
@@ -345,7 +347,8 @@ export default function EventDetails() {
       process.env.NEXT_PUBLIC_BASE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");
     const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${event._id}`;
-    const message = `Join me at "${event.title}" on Eventful: ${eventUrl}`;
+    const locationLine = event.location ? ` at ${event.location}` : "";
+    const message = `Join me at "${event.title}"${locationLine} on Eventful: ${eventUrl}`;
 
     try {
       if (navigator?.clipboard?.writeText) {
@@ -494,7 +497,7 @@ export default function EventDetails() {
                   </p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                     <p className="text-xs uppercase tracking-[0.4em] text-white/60">
                       Attendance
@@ -513,6 +516,18 @@ export default function EventDetails() {
                     </p>
                     <p className="text-sm text-white/70">
                       {event.attendees?.length || 0} confirmed attendees
+                    </p>
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/60">
+                      Location
+                    </p>
+                    <p className="mt-3 text-lg font-semibold text-white flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-sky-300" />
+                      {event.location || "To be announced"}
+                    </p>
+                    <p className="text-sm text-white/70">
+                      Share this location with attendees so they know where to arrive.
                     </p>
                   </div>
                 </div>

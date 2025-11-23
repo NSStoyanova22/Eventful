@@ -16,6 +16,7 @@ type EventType = {
   _id: string;
   title: string;
   description: string;
+  location?: string;
   startDate: string;
   endDate: string;
   attendees: string[];
