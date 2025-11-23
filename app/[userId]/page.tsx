@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/ui/navigation-menu";
 import { DateTime } from 'luxon';
-import { use, useCallback, useEffect, useState, useRef } from "react";
+import React, { use, useCallback, useEffect, useState, useRef } from "react";
 import ProfilePost from "@/components/ui/post";
 import { signOut } from "next-auth/react"
 import Link from "next/link";
@@ -20,6 +20,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
 import { toast } from "sonner";
+import { Calendar } from "@/components/ui/calendar";
 
 type CountryOption = {
   code: string;
@@ -66,6 +67,8 @@ export default function UserProfile() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const justUploadedRef = useRef(false);
+   const [date, setDate] = React.useState<Date | undefined>(new Date())
+
 
   const handleSave = async () => {
     if (!session?.user?.email) {
@@ -496,6 +499,12 @@ export default function UserProfile() {
             <div className="flex flex-col w-full gap-3 pt-4">
               <button onClick={handleToggleSettings} className="w-full rounded-2xl bg-white/15 px-4 py-3 text-sm font-semibold tracking-wide text-white shadow-lg shadow-blue-900/30 transition hover:bg-white/25">{openSettings ? "Done" : "Edit profile"}</button>
               <button onClick={() => signOut({ callbackUrl: "/" })} className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold tracking-wide text-slate-900 transition hover:bg-slate-100">Sign out</button>
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={setDate}
+                className="rounded-lg border border-white/10 bg-white/85 backdrop-blur-xl p-5 shadow-2xl text-sm font-medium text-indigo-700"
+              />
             </div>
           </aside>
           {/* IF settings are open */}

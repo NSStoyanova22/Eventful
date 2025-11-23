@@ -346,7 +346,7 @@ export default function Navbar() {
                 <SearchBar />
               </NavigationMenuItem>
               <NavigationMenuItem>
-                {/* search, make into button later */}
+                {/* search */}
                 <button>
                   <div className="relative inline-block w-10 h-10 mt-2">
                     <div className="absolute top-1 left-1 w-[1.4rem] h-[1.4rem] border-[0.28rem] border-sky-800 rounded-full"></div>
