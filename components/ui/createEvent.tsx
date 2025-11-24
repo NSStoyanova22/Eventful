@@ -9,45 +9,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useSession } from "next-auth/react";
-import { CalendarPlus, ImagePlus } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
 import { addNotificationToStorage } from "./notification-utils";
+import { CategoryRule, CATEGORY_RULES } from "@/app/lib/categoryRules";
 
-type CategoryRule = {
-  name: string;
-  regex: RegExp;
-  overpass: {
-    key: string;
-    value: string;
-  };
-};
 
-const CATEGORY_RULES: CategoryRule[] = [
-  {
-    name: "Music",
-    regex: /(concert|music|dj|karaoke|band|gig)/i,
-    overpass: { key: "amenity", value: "nightclub" },
-  },
-  {
-    name: "Food & Drink",
-    regex: /(dinner|brunch|tasting|food|restaurant|wine|cocktail|coffee)/i,
-    overpass: { key: "amenity", value: "restaurant" },
-  },
-  {
-    name: "Sports",
-    regex: /(match|game|tournament|yoga|run|football|basketball|tennis|sport)/i,
-    overpass: { key: "leisure", value: "pitch" },
-  },
-  {
-    name: "Art & Culture",
-    regex: /(art|gallery|museum|exhibit|culture|theatre|theater)/i,
-    overpass: { key: "tourism", value: "museum" },
-  },
-  {
-    name: "Tech & Business",
-    regex: /(startup|tech|coding|developer|business|networking|conference|meetup)/i,
-    overpass: { key: "office", value: "it" },
-  },
-];
 
 type Coordinates = { lat: number; lon: number };
 const NOMINATIM_HEADERS = {
@@ -79,9 +45,21 @@ export function CreateButtonNav() {
           Create
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl rounded-[32px] border border-white/10 bg-slate-950/80 text-white shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
-        <CreateEvent />
-      </DialogContent>
+      <DialogContent
+  className="
+    max-w-3xl
+    max-h-[85vh]
+    overflow-y-auto
+    rounded-[32px]
+    border border-white/10
+    bg-slate-950/80
+    text-white
+    shadow-[0_40px_120px_rgba(15,23,42,0.45)]
+    backdrop-blur-2xl
+  "
+>
+  <CreateEvent />
+</DialogContent>
     </Dialog>
   );
 }
@@ -95,9 +73,21 @@ export function CreateButtonSide() {
           New event
         </button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl rounded-[32px] border border-white/10 bg-slate-950/80 text-white shadow-[0_40px_120px_rgba(15,23,42,0.45)] backdrop-blur-2xl">
-        <CreateEvent />
-      </DialogContent>
+   <DialogContent
+  className="
+    max-w-3xl
+    max-h-[85vh]
+    overflow-y-auto
+    rounded-[32px]
+    border border-white/10
+    bg-slate-950/80
+    text-white
+    shadow-[0_40px_120px_rgba(15,23,42,0.45)]
+    backdrop-blur-2xl
+  "
+>
+  <CreateEvent />
+</DialogContent>
     </Dialog>
   );
 }
@@ -549,250 +539,272 @@ export default function CreateEvent({
     }
   }
 
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="mx-auto max-w-2xl space-y-5 rounded-[28px] border border-white/10 bg-slate-900/20 p-6 text-white shadow-inner shadow-blue-900/30"
-    >
-      <div className="space-y-2 text-center">
-        <p className="text-xs uppercase tracking-[0.5em] text-blue-200/70">
-          {eventToEdit ? "Update event" : "New event"} {/* show update or new based on editing state */}
-        </p>
-        <DialogTitle className="text-3xl font-semibold text-white">
-          {eventToEdit ? "Refresh the experience" : "Design a new moment"} {/* main title */}
-        </DialogTitle>
-        <DialogDescription className="text-sm text-white/70">
-          This is a {isEventPublic ? "public" : "private"} event {/* display event privacy */}
-        </DialogDescription>
-      </div>
+ return (
+  <form
+    onSubmit={handleSubmit}
+    className="
+      mx-auto w-full max-w-2xl
+      rounded-[28px] border border-white/10
+      bg-slate-900/20 p-5 text-white
+      shadow-inner shadow-blue-900/30
+      flex flex-col gap-4
+      h-full
+    "
+  >
+    {/* ---------- HEADER ---------- */}
+    <div className="text-center space-y-1">
+      <p className="text-[10px] uppercase tracking-[0.45em] text-blue-200/70">
+        {eventToEdit ? "Update event" : "New event"}
+      </p>
 
-      <div className="space-y-4">
+      <DialogTitle className="text-2xl font-semibold text-white">
+        {eventToEdit ? "Refresh the experience" : "Design a new moment"}
+      </DialogTitle>
+
+      <DialogDescription className="text-xs text-white/60">
+        This is a {isEventPublic ? "public" : "private"} event
+      </DialogDescription>
+    </div>
+
+    <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+      {/* Title + Location in 1 row */}
+      <div className="grid gap-3 md:grid-cols-2">
         <input
           type="text"
           placeholder="Event title"
-          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        <textarea
-          placeholder="Tell guests what makes this event special..."
-          className="min-h-[40px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+
+        <input
+          type="text"
+          placeholder="City, venue, address"
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+          value={location}
+          onChange={(e) => {
+            setLocation(e.target.value);
+            if (locationError) setLocationError(null);
+          }}
         />
-        <div className="space-y-2">
-          <label className="text-xs uppercase tracking-[0.4em] text-white/50">
-            Location
-          </label>
-          <input
-            type="text"
-            placeholder="City, venue, address"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-            value={location}
-            onChange={(e) => {
-              setLocation(e.target.value);
-              if (locationError) {
-                setLocationError(null);
-              }
-            }}
-          />
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={requestLocationSuggestions}
-            disabled={isLocating}
-            className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-white/90 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLocating ? "Finding nearby places..." : "Suggest near me"}
-          </button>
-          <button
-            type="button"
-            onClick={fetchTitleBasedSuggestions}
-            disabled={isFetchingTitleSuggestions || !detectedCategory}
-            className="rounded-full border border-emerald-300/40 px-4 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isFetchingTitleSuggestions
-              ? "Searching nearby venues..."
-              : "Suggest based on title"}
-          </button>
-          {locationError && (
-            <span className="text-xs text-red-200">{locationError}</span>
-          )}
-          {detectedCategory && (
-            <span className="text-xs text-emerald-200">
-              Detected category: {detectedCategory.name}
-            </span>
-          )}
+      </div>
+
+      {/* Description (shorter) */}
+      <textarea
+        placeholder="Tell guests what makes this event special..."
+        className="min-h-[70px] max-h-[130px] w-full resize-y rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+      />
+
+      {/* Location actions row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[10px] uppercase tracking-[0.35em] text-white/50"> Location suggestions:</p>
+        <button
+          type="button"
+          onClick={requestLocationSuggestions}
+          disabled={isLocating}
+          className="rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-semibold text-white/90 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isLocating ? "Finding..." : "Near me"}
+        </button>
+
+        <button
+          type="button"
+          onClick={fetchTitleBasedSuggestions}
+          disabled={isFetchingTitleSuggestions || !detectedCategory}
+          className="rounded-full border border-emerald-300/40 px-3 py-1.5 text-[11px] font-semibold text-emerald-100 transition hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isFetchingTitleSuggestions ? "Searching..." : "By title"}
+        </button>
+
+        {locationError && (
+          <span className="text-[11px] text-red-200">{locationError}</span>
+        )}
+
+        {detectedCategory && (
+          <span className="text-[11px] text-emerald-200">
+            Detected: {detectedCategory.name}
+          </span>
+        )}
+      </div>
+
+      {/* Location suggestions */}
+      {locationSuggestions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {locationSuggestions.map((suggestion) => (
+            <button
+              type="button"
+              key={suggestion}
+              onClick={() => setLocation(suggestion)}
+              className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/80 transition hover:bg-white/10"
+            >
+              {suggestion}
+            </button>
+          ))}
         </div>
-        {locationSuggestions.length > 0 && (
+      )}
+
+      {/* Title suggestion error */}
+      {titleSuggestionError && (
+        <p className="text-[11px] text-amber-200">{titleSuggestionError}</p>
+      )}
+
+      {/* Title-based venue suggestions */}
+      {titlePlaceSuggestions.length > 0 && (
+        <div className="rounded-xl border border-emerald-200/20 bg-emerald-900/10 p-3 text-[11px] text-emerald-50 space-y-2">
+          <p className="font-semibold uppercase tracking-[0.3em] text-emerald-200 text-[10px]">
+            Suggested venues
+          </p>
           <div className="flex flex-wrap gap-2">
-            {locationSuggestions.map((suggestion) => (
+            {titlePlaceSuggestions.map((place) => (
               <button
                 type="button"
-                key={suggestion}
-                onClick={() => setLocation(suggestion)}
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80 transition hover:bg-white/10"
+                key={place.label}
+                onClick={() => setLocation(place.value || place.label)}
+                className="rounded-lg border border-emerald-300/30 bg-white/5 px-3 py-1 text-left text-[11px] text-white/90 transition hover:bg-white/20"
               >
-                {suggestion}
+                {place.label}
               </button>
             ))}
           </div>
-        )}
-        {titleSuggestionError && (
-          <p className="text-xs text-amber-200">{titleSuggestionError}</p>
-        )}
-        {titlePlaceSuggestions.length > 0 && (
-          <div className="rounded-2xl border border-emerald-200/20 bg-emerald-900/10 p-3 text-xs text-emerald-50">
-            <p className="mb-2 font-semibold uppercase tracking-[0.3em] text-emerald-200">
-              Suggested venues
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {titlePlaceSuggestions.map((place) => (
-                <button
-                  type="button"
-                  key={place.label}
-                  onClick={() => setLocation(place.value || place.label)}
-                  className="rounded-xl border border-emerald-300/30 bg-white/5 px-3 py-1 text-left text-[11px] text-white/90 transition hover:bg-white/20"
-                >
-                  {place.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {(weatherSummary || weatherLoading || weatherError) && (
-  <div className="rounded-xl border border-sky-200/20 bg-sky-900/10 p-3 text-xs text-white/80">
-    {weatherLoading ? (
-      <p className="text-sky-200 text-xs">Updating weather...</p>
-    ) : weatherSummary ? (
-      <>
-        <p className="text-[10px] uppercase tracking-[0.25em] text-sky-300">
-          Weather
-        </p>
-
-        <p className="mt-0.5 text-sm font-semibold text-white leading-tight">
-          {weatherSummary.headline}
-        </p>
-
-        <div className="mt-2 grid grid-cols-2 gap-y-1 gap-x-2 text-[11px] text-white/70">
-          <span>Temp: {weatherSummary.details.temperature}</span>
-          <span>Rain: {weatherSummary.details.rainChance}%</span>
-          <span>Wind: {weatherSummary.details.wind} kph</span>
-          <span>Humidity: {weatherSummary.details.humidity}%</span>
         </div>
+      )}
 
-        <p className="mt-1 text-[10px] text-white/60 leading-snug">
-          {weatherSummary.advice}
-        </p>
-      </>
-    ) : (
-      <p className="text-amber-200 text-xs">{weatherError}</p>
-    )}
-  </div>
-)}
-      </div>
-    </div>
+      {/* Weather (compact) */}
+      {(weatherSummary || weatherLoading || weatherError) && (
+        <div className="rounded-xl border border-sky-200/20 bg-sky-900/10 p-3 text-xs text-white/80">
+          {weatherLoading ? (
+            <p className="text-sky-200 text-xs">Updating weather...</p>
+          ) : weatherSummary ? (
+            <>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-sky-300">
+                Weather
+              </p>
+              <p className="mt-0.5 text-sm font-semibold text-white leading-tight">
+                {weatherSummary.headline}
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-y-1 gap-x-2 text-[11px] text-white/70">
+                <span>Temp: {weatherSummary.details.temperature}</span>
+                <span>Rain: {weatherSummary.details.rainChance}%</span>
+                <span>Wind: {weatherSummary.details.wind} kph</span>
+                <span>Humidity: {weatherSummary.details.humidity}%</span>
+              </div>
+              <p className="mt-1 text-[10px] text-white/60 leading-snug">
+                {weatherSummary.advice}
+              </p>
+            </>
+          ) : (
+            <p className="text-amber-200 text-xs">{weatherError}</p>
+          )}
+        </div>
+      )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <label className="text-xs uppercase tracking-[0.4em] text-white/50">
+      {/* Dates + time in one tight row */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="space-y-1">
+          <label className="text-[10px] uppercase tracking-[0.35em] text-white/50">
             Start date
           </label>
           <input
             type="date"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
         </div>
-        <div className="space-y-2">
-          <label className="text-xs uppercase tracking-[0.4em] text-white/50">
+
+        <div className="space-y-1">
+          <label className="text-[10px] uppercase tracking-[0.35em] text-white/50">
             End date
           </label>
           <input
             type="date"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
         </div>
-      </div>
-      <div className="flex flex-col gap-4 items-end md:flex-row">
-        <div className="flex-1 space-y-2">
-          <label className="text-xs uppercase tracking-[0.4em] text-white/50">
+
+        <div className="space-y-1">
+          <label className="text-[10px] uppercase tracking-[0.35em] text-white/50">
             Start time
           </label>
           <input
             type="time"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
           />
         </div>
-        <div className="flex-1 flex flex-col space-y-1">
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-white/30 bg-transparent text-blue-500 focus:ring-blue-500"
-              checked={isPeopleLimitChecked}
-              onChange={handleGuestChange}
-            />
-            Limit
-          </label>
-          <p className="text-sm font-semibold text-white">
-            {isPeopleLimitChecked
-              ? `Max ${guestLimit || 0} guests`
-              : "Unlimited guests"}
-          </p>
-        </div>
+      </div>
+
+      {/* Guest limit row */}
+      <div className="grid gap-3 md:grid-cols-3 items-end">
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-white/30 bg-transparent text-blue-500 focus:ring-blue-500"
+            checked={isPeopleLimitChecked}
+            onChange={handleGuestChange}
+          />
+          Limit guests
+        </label>
+
+        <p className="text-sm font-semibold text-white">
+          {isPeopleLimitChecked ? `Max ${guestLimit || 0}` : "Unlimited"}
+        </p>
+
         {isPeopleLimitChecked && (
-          <div className="flex-1 space-y-2">
-            <label className="text-xs uppercase tracking-[0.4em] text-white/50">
-              Number of guests
-            </label>
-            <input
-              type="number"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-              value={guestLimit}
-              onChange={(e) => setGuestLimit(Number(e.target.value))}
-            />
-          </div>
+          <input
+            type="number"
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            value={guestLimit}
+            onChange={(e) => setGuestLimit(Number(e.target.value))}
+          />
         )}
       </div>
 
-      <div className="space-y-2 rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-center">
+      {/* Image upload shorter */}
+      <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-3 text-center space-y-2">
         {imageBase64 ? (
-          <div className="space-y-2">
-            <img
-              src={imageBase64}
-              alt="Selected"
-              className="mx-auto h-40 w-full rounded-2xl object-cover"
-            />
-            <p className="text-sm text-white/70">Change cover image</p>
-          </div>
+          <img
+            src={imageBase64}
+            alt="Selected"
+            className="mx-auto h-32 w-full rounded-xl object-cover"
+          />
         ) : (
-          <div className="flex flex-col items-center gap-3 text-white/70">
-            <p className="text-sm">Upload a hero image</p>
-          </div>
+          <p className="text-xs text-white/70">Upload cover image</p>
         )}
-        <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20">
+
+        <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20">
           <input type="file" className="hidden" onChange={handleImageChange} />
           Choose file
         </label>
       </div>
+    </div>
 
-      <div className="flex items-center justify-between ">
-         <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 gap-4">
-        
+    {/* ---------- FOOTER (ALWAYS VISIBLE) ---------- */}
+    <div
+      className="
+        bottom-0
+        flex items-center justify-between gap-3
+        border-t
+        pt-3
+        z-50
+      "
+    >
+      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 gap-3">
         <div>
-          <p className="text-sm font-semibold text-white">{isEventPublic ? "Public" : "Private"} event</p>
-          <p className="text-xs text-white/60">
-            {isEventPublic
-              ? "Visible to all Eventful members"
-              : "Only invited guests see this"}
+          <p className="text-xs font-semibold text-white">
+            {isEventPublic ? "Public" : "Private"} event
+          </p>
+          <p className="text-[10px] text-white/60">
+            {isEventPublic ? "Visible to all members" : "Only invited guests"}
           </p>
         </div>
-        <label className="inline-flex items-center gap-2 text-sm">
+
+        <label className="inline-flex items-center gap-2 text-xs">
           <input
             type="checkbox"
             className="h-4 w-4 rounded border-white/30 bg-transparent text-blue-500 focus:ring-blue-500"
@@ -801,19 +813,16 @@ export default function CreateEvent({
           />
           Public
         </label>
- 
       </div>
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={loading}
-        >
-          {loading ? "Saving..." : eventToEdit ? "Update event" : "Create event"}
-        </button>
-      </div>
-      
 
-     
-    </form>
-  )
+      <button
+        type="submit"
+        className="shrink-0 inline-flex items-center justify-center rounded-full bg-white px-12 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={loading}
+      >
+        {loading ? "Saving..." : eventToEdit ? "Update" : "Create"}
+      </button>
+    </div>
+  </form>
+);
 }
