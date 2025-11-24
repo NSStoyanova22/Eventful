@@ -17,7 +17,12 @@ interface PostProps {
     title: string;
     startDate: string;
     description: string;
-    location?: string;
+    location?: {
+      name?: string;
+      formatted?: string;
+      latitude?: number;
+      longitude?: number;
+    };
     image?: string;
     createdByImage?: string;
     createdByName?: string;
@@ -182,7 +187,7 @@ export default function Post({ post, hideComment }: PostProps) {
       process.env.NEXT_PUBLIC_BASE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");
     const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${post._id}`;
-    const locationLine = post.location ? ` at ${post.location}` : "";
+    const locationLine = post.location?.name ? ` at ${post.location.name}` : "";
     const message = `Join me at "${post.title}"${locationLine} on Eventful: ${eventUrl}`;
 
     try {
@@ -271,10 +276,10 @@ export default function Post({ post, hideComment }: PostProps) {
             <Clock className="h-4 w-4 text-purple-600" />
             {readableTime}
           </div>
-          {post?.location && (
+          {post?.location?.name && (
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
               <MapPin className="h-4 w-4 text-emerald-600" />
-              <span className="truncate max-w-[150px]">{post.location}</span>
+              <span className="truncate max-w-[150px]">{post.location.name}</span>
             </div>
           )}
         </div>

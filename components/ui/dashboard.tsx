@@ -16,7 +16,12 @@ type EventType = {
   _id: string;
   title: string;
   description: string;
-  location?: string;
+  location?: {
+    name: string;
+    formatted?: string;
+    latitude?: number;
+    longitude?: number;
+  };
   startDate: string;
   endDate: string;
   attendees: string[];

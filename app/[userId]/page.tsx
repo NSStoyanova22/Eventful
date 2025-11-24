@@ -255,7 +255,7 @@ export default function UserProfile() {
         const start = new Date(event.startDate);
         if (isNaN(start.getTime())) return null;
 
-        const locationSnippet = event.location ? `${event.location} · ` : "";
+        const locationSnippet = event.location?.name ? `${event.location.name} · ` : "";
         return {
           id: event._id,
           date: start,

@@ -4,12 +4,13 @@ import Event from "@/app/models/event";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import moderateText from "@/app/lib/moderate";
+import { geocodeLocation } from "@/app/lib/geocode";
 
 export async function GET(request: Request, { params }: any) {
   try {
     await connect();
     const { id } = params;
-    const event = await Event.findById(id).populate("attendees"); 
+    const event = await Event.findById(id).populate("attendees");
 
     const session = await getServerSession(authOptions);
     const requesterId = session?.user?.id?.toString();
@@ -23,7 +24,22 @@ export async function GET(request: Request, { params }: any) {
       return NextResponse.json({ error: "Event not available" }, { status: 403 });
     }
 
-    return NextResponse.json({ event }, { status: 200 });
+    const normalizedLocation = {
+      name: (event as any).location || "",
+      formatted:
+        (event as any).locationFormatted ||
+        (event as any).location ||
+        "",
+      latitude: (event as any).locationLatitude ?? undefined,
+      longitude: (event as any).locationLongitude ?? undefined,
+    };
+
+    const serializedEvent =
+      typeof event.toObject === "function"
+        ? { ...event.toObject(), location: normalizedLocation }
+        : { ...event, location: normalizedLocation };
+
+    return NextResponse.json({ event: serializedEvent }, { status: 200 });
   } catch (error) {
     console.error("Error fetching event:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -49,14 +65,32 @@ export async function PUT(request: Request, { params }: any) {
       formData.get("startDate")?.toString() ?? existingEvent.startDate;
     const endDate =
       formData.get("endDate")?.toString() ?? existingEvent.endDate;
-    const location =
-      formData.get("location")?.toString() ?? existingEvent.location;
+    const locationInput = formData.get("location")?.toString();
     const isPublic = formData.has("isPublic")
       ? JSON.parse(formData.get("isPublic")?.toString() || "false")
       : existingEvent.isPublic;
     const guestLimit = formData.has("guestLimit")
       ? parseInt(formData.get("guestLimit")?.toString() || "0")
       : existingEvent.guestLimit;
+
+    let locationName = existingEvent.location || "";
+    let locationFormatted = existingEvent.locationFormatted || "";
+    let locationLatitude = existingEvent.locationLatitude;
+    let locationLongitude = existingEvent.locationLongitude;
+    if (typeof locationInput === "string" && locationInput.trim().length > 0) {
+      try {
+        const resolved = await geocodeLocation(locationInput);
+        locationName = resolved.name;
+        locationFormatted = resolved.formatted ?? "";
+        locationLatitude = resolved.latitude;
+        locationLongitude = resolved.longitude;
+      } catch (geoError: any) {
+        return NextResponse.json(
+          { error: geoError.message || "Unable to resolve event location." },
+          { status: 400 }
+        );
+      }
+    }
 
     const moderationStatus = !moderateText(description || "").allowed
       ? "flagged"
@@ -69,7 +103,10 @@ export async function PUT(request: Request, { params }: any) {
       {
         title,
         description,
-        location,
+        location: locationName,
+        locationFormatted,
+        locationLatitude,
+        locationLongitude,
         startDate,
         endDate,
         isPublic,

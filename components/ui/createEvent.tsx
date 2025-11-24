@@ -50,6 +50,23 @@ const CATEGORY_RULES: CategoryRule[] = [
 ];
 
 type Coordinates = { lat: number; lon: number };
+const NOMINATIM_HEADERS = {
+  "User-Agent": "EventfulApp/1.0 (info@eventful.local)",
+};
+
+type WeatherSummary = {
+  headline: string;
+  details: {
+    temperature: string;
+    rainChance: number;
+    wind: number;
+    humidity: number;
+    rainRisk: string;
+    tempProfile: string;
+    windProfile: string;
+  };
+  advice: string;
+};
 
 export function CreateButtonNav() {
   return (
@@ -89,7 +106,9 @@ type EventToEdit = {
   _id: string;
   title?: string;
   description?: string;
-  location?: string;
+  location?: {
+    name?: string;
+  };
   startDate?: string | Date;
   endDate?: string | Date;
   guestLimit?: number;
@@ -124,6 +143,9 @@ export default function CreateEvent({
   >([]);
   const [isFetchingTitleSuggestions, setIsFetchingTitleSuggestions] = useState(false);
   const [titleSuggestionError, setTitleSuggestionError] = useState<string | null>(null);
+  const [weatherSummary, setWeatherSummary] = useState<WeatherSummary | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
   const [isPeopleLimitChecked, setIsPeopleLimitChecked] = useState(false);
   const [guestLimit, setGuestLimit] = useState<number>(0);
   const [isEventPublic, setIsEventPublic] = useState(false);
@@ -137,7 +159,7 @@ export default function CreateEvent({
     if (eventToEdit) {
       setTitle(eventToEdit.title || "");
       setDescription(eventToEdit.description || "");
-      setLocation(eventToEdit.location || "");
+      setLocation(eventToEdit.location?.name || "");
 
       if (eventToEdit.startDate) {
         const start = new Date(eventToEdit.startDate);
@@ -159,11 +181,62 @@ export default function CreateEvent({
   useEffect(() => {
     if (!title) {
       setDetectedCategory(null);
+      setTitlePlaceSuggestions([]);
+      setTitleSuggestionError(null);
       return;
     }
     const match = CATEGORY_RULES.find((rule) => rule.regex.test(title));
     setDetectedCategory(match ?? null);
+    setTitlePlaceSuggestions([]);
+    setTitleSuggestionError(null);
   }, [title]);
+
+  useEffect(() => {
+    if (!location || !startDate) {
+      setWeatherSummary(null);
+      setWeatherError(null);
+      return;
+    }
+
+    const startDateTime = startTime
+      ? `${startDate}T${startTime}`
+      : `${startDate}T00:00`;
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        setWeatherLoading(true);
+        setWeatherError(null);
+        const response = await fetch("/api/weather/diagnose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            locationName: location,
+            startDate: startDateTime,
+          }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to fetch weather");
+        }
+        const data = await response.json();
+        setWeatherSummary(data.summary);
+      } catch (error: any) {
+        if (error.name === "AbortError") return;
+        console.error("Weather diagnostics error:", error);
+        setWeatherError(error.message || "Unable to fetch weather.");
+        setWeatherSummary(null);
+      } finally {
+        setWeatherLoading(false);
+      }
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [location, startDate, startTime]);
 
   function handleGuestChange(e: React.ChangeEvent<HTMLInputElement>) {
     setIsPeopleLimitChecked(e.target.checked);
@@ -232,7 +305,8 @@ export default function CreateEvent({
     try {
       const coords = userCoordinates || (await getCurrentPosition());
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lon}`
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lon}`,
+        { headers: NOMINATIM_HEADERS }
       );
       if (!response.ok) {
         throw new Error("Failed to fetch location details");
@@ -310,7 +384,12 @@ export default function CreateEvent({
       `;
       const encoded = encodeURIComponent(query);
       const response = await fetch(
-        `https://overpass-api.de/api/interpreter?data=${encoded}`
+        `https://overpass-api.de/api/interpreter?data=${encoded}`,
+        {
+          headers: {
+            "User-Agent": "EventfulApp/1.0 (info@eventful.local)",
+          },
+        }
       );
 
       if (!response.ok) {
@@ -458,6 +537,10 @@ export default function CreateEvent({
       setGuestLimit(0);
       setIsEventPublic(false);
       setImageBase64(null);
+      setWeatherSummary(null);
+      setWeatherError(null);
+      setTitlePlaceSuggestions([]);
+      setTitleSuggestionError(null);
     } catch (error: any) {
       console.error("Error creating/updating event:", error);
       toast.error(`Something went wrong: ${error.message}`);
@@ -577,6 +660,36 @@ export default function CreateEvent({
             </div>
           </div>
         )}
+        {(weatherSummary || weatherLoading || weatherError) && (
+  <div className="rounded-xl border border-sky-200/20 bg-sky-900/10 p-3 text-xs text-white/80">
+    {weatherLoading ? (
+      <p className="text-sky-200 text-xs">Updating weather...</p>
+    ) : weatherSummary ? (
+      <>
+        <p className="text-[10px] uppercase tracking-[0.25em] text-sky-300">
+          Weather
+        </p>
+
+        <p className="mt-0.5 text-sm font-semibold text-white leading-tight">
+          {weatherSummary.headline}
+        </p>
+
+        <div className="mt-2 grid grid-cols-2 gap-y-1 gap-x-2 text-[11px] text-white/70">
+          <span>Temp: {weatherSummary.details.temperature}</span>
+          <span>Rain: {weatherSummary.details.rainChance}%</span>
+          <span>Wind: {weatherSummary.details.wind} kph</span>
+          <span>Humidity: {weatherSummary.details.humidity}%</span>
+        </div>
+
+        <p className="mt-1 text-[10px] text-white/60 leading-snug">
+          {weatherSummary.advice}
+        </p>
+      </>
+    ) : (
+      <p className="text-amber-200 text-xs">{weatherError}</p>
+    )}
+  </div>
+)}
       </div>
     </div>
 

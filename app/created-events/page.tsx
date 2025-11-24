@@ -11,6 +11,9 @@ interface Event {
   _id: string;
   title: string;
   description: string;
+  location?: {
+    name?: string;
+  };
   startDate: string;
   endDate: string;
   image: string;
@@ -143,7 +146,7 @@ export default function CreatedEvents() {
                       </p>
                       <p className="mt-2 flex items-center gap-2 text-xs text-white/60">
                         <MapPin className="h-3.5 w-3.5 text-blue-200" />
-                        {event.location || "Location TBA"}
+                        {event.location?.name || "Location TBA"}
                       </p>
                       
                       <div className="mt-4 flex items-center justify-between">

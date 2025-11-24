@@ -6,6 +6,7 @@ import moderateText from "../../lib/moderate";
 import mongoose from "mongoose";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { geocodeLocation } from "@/app/lib/geocode";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     const guestLimitRaw = formData.get("guestLimit");
     const attendingRaw = formData.get("attending");
     const userId = formData.get("userId");
-    const location = formData.get("location");
+    const locationName = formData.get("location");
 
     if (
       typeof title !== "string" ||
@@ -35,13 +36,13 @@ export async function POST(req: NextRequest) {
       typeof startDate !== "string" ||
       typeof endDate !== "string" ||
       typeof userId !== "string" ||
-      typeof location !== "string" ||
+      typeof locationName !== "string" ||
       !title.trim() ||
       !description.trim() ||
       !startDate.trim() ||
       !endDate.trim() ||
       !userId.trim() ||
-      !location.trim()
+      !locationName.trim()
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -91,10 +92,23 @@ export async function POST(req: NextRequest) {
       imageUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
     }
 
+    let resolvedLocation;
+    try {
+      resolvedLocation = await geocodeLocation(locationName);
+    } catch (geoError: any) {
+      return NextResponse.json(
+        { error: geoError.message || "Unable to resolve event location." },
+        { status: 400 }
+      );
+    }
+
     const newEvent = new Event({
       title,
       description,
-      location: location.trim(),
+      location: resolvedLocation.name,
+      locationFormatted: resolvedLocation.formatted,
+      locationLatitude: resolvedLocation.latitude,
+      locationLongitude: resolvedLocation.longitude,
       startDate,
       endDate,
       image: imageUrl,
@@ -172,12 +186,19 @@ export async function GET(req: NextRequest) {
     // Map the data to the expected format
     const eventsWithUserDetails = filteredEvents.map((event: any) => {
       const user = userMap.get(event.createdBy?.toString());
+      const normalizedLocation = {
+        name: event.location || "",
+        formatted: event.locationFormatted || event.location || "",
+        latitude: event.locationLatitude ?? undefined,
+        longitude: event.locationLongitude ?? undefined,
+      };
       return {
         ...event,
         _id: event._id.toString(),
         createdByName: event.createdByName || user?.username || "Eventful Host",
         // Use user image URL (now lightweight) or default
         createdByImage: user?.image || "https://cdn.pfps.gg/pfps/2301-default-2.png",
+        location: normalizedLocation,
       };
     });
 

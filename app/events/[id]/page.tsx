@@ -27,7 +27,12 @@ interface Event {
   title: string;
   createdBy?: string;
   createdByName?: string;
-  location?: string;
+  location?: {
+    name?: string;
+    formatted?: string;
+    latitude?: number;
+    longitude?: number;
+  };
   startDate: string;
   endDate?: string;
   status?: string;
@@ -64,6 +69,20 @@ interface CustomSessionUser {
   image?: string;
 }
 
+type WeatherSummary = {
+  headline: string;
+  details: {
+    temperature: string;
+    rainChance: number;
+    wind: number;
+    humidity: number;
+    rainRisk: string;
+    tempProfile: string;
+    windProfile: string;
+  };
+  advice: string;
+};
+
 export default function EventDetails() {
   const { id } = useParams();
   const router = useRouter();
@@ -81,12 +100,15 @@ export default function EventDetails() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const [hasJoined, setHasJoined] = useState(false);
+  const [weatherSummary, setWeatherSummary] = useState<WeatherSummary | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
   // hydrate client session details with richer db data
   const { user } = useUser();
   const { events } = useEvents();
 
-  useEffect(() => {
-    if (!id || !events.length) return;
+useEffect(() => {
+  if (!id || !events.length) return;
 
     try {
       const currentEvent = events.find((evt: any) => evt._id === id);
@@ -106,7 +128,56 @@ export default function EventDetails() {
       console.error("Error finding event:", err);
       setError("Error finding event");
     }
-  }, [id, events, session]);
+}, [id, events, session]);
+
+useEffect(() => {
+  if (!event?.startDate) {
+    setWeatherSummary(null);
+    setWeatherError(null);
+    return;
+  }
+
+  const controller = new AbortController();
+
+  const fetchWeather = async () => {
+    try {
+      setWeatherLoading(true);
+      setWeatherError(null);
+      const response = await fetch("/api/weather/diagnose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: event.startDate,
+          latitude: event.location?.latitude,
+          longitude: event.location?.longitude,
+          locationName: event.location?.name,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Unable to fetch weather.");
+      }
+      const data = await response.json();
+      setWeatherSummary(data.summary);
+    } catch (error: any) {
+      if (error.name === "AbortError") return;
+      console.error("Event weather error:", error);
+      setWeatherError(error.message || "Weather data unavailable.");
+      setWeatherSummary(null);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  fetchWeather();
+  return () => controller.abort();
+}, [
+  event?.startDate,
+  event?.location?.latitude,
+  event?.location?.longitude,
+  event?.location?.name,
+]);
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -347,7 +418,7 @@ export default function EventDetails() {
       process.env.NEXT_PUBLIC_BASE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");
     const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${event._id}`;
-    const locationLine = event.location ? ` at ${event.location}` : "";
+    const locationLine = event.location?.name ? ` at ${event.location.name}` : "";
     const message = `Join me at "${event.title}"${locationLine} on Eventful: ${eventUrl}`;
 
     try {
@@ -469,6 +540,11 @@ export default function EventDetails() {
                       Status: {event.status}
                     </span>
                   )}
+                  {weatherSummary && (
+                    <span className="rounded-full bg-sky-500/20 px-4 py-1 text-xs font-semibold text-sky-100">
+                      Weather: {weatherSummary.details.rainRisk} rain risk
+                    </span>
+                  )}
                   <button
                     onClick={shareCurrentEvent}
                     className="ml-auto inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
@@ -497,7 +573,7 @@ export default function EventDetails() {
                   </p>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                     <p className="text-xs uppercase tracking-[0.4em] text-white/60">
                       Attendance
@@ -506,32 +582,59 @@ export default function EventDetails() {
                       {event.attending}
                     </p>
                     <p className="text-sm text-white/70">people already in</p>
-                  </div>
-                  <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                    <p className="text-xs uppercase tracking-[0.4em] text-white/60">
+                    <p className="text-xs uppercase tracking-[0.4em]  mt-2 text-white/60">
                       Status
                     </p>
-                    <p className="mt-3 text-lg font-semibold">
+                    <p className="mt-2 text-lg font-semibold">
                       {hasJoined ? "You're in" : "Seats open"}
                     </p>
-                    <p className="text-sm text-white/70">
-                      {event.attendees?.length || 0} confirmed attendees
-                    </p>
                   </div>
+                  
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                     <p className="text-xs uppercase tracking-[0.4em] text-white/60">
                       Location
                     </p>
                     <p className="mt-3 text-lg font-semibold text-white flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-sky-300" />
-                      {event.location || "To be announced"}
+                      {event.location?.name || "To be announced"}
                     </p>
                     <p className="text-sm text-white/70">
                       Share this location with attendees so they know where to arrive.
                     </p>
                   </div>
                 </div>
-              </div>
+              
+             {(weatherSummary || weatherLoading || weatherError) && (
+  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/80">
+    <p className="text-[10px] uppercase tracking-[0.25em] text-white/50">
+      Weather
+    </p>
+
+    {weatherLoading ? (
+      <p className="mt-1 text-white/70 text-xs">Checking forecast...</p>
+    ) : weatherSummary ? (
+      <>
+        <p className="mt-1 text-sm font-semibold text-white leading-tight">
+          {weatherSummary.headline}
+        </p>
+
+        <div className="mt-2 grid grid-cols-2 gap-y-1 gap-x-3 text-[11px] text-white/70">
+          <span>Temp: {weatherSummary.details.temperature}</span>
+          <span>Rain: {weatherSummary.details.rainChance}%</span>
+          <span>Wind: {weatherSummary.details.wind} kph</span>
+          <span>Humidity: {weatherSummary.details.humidity}%</span>
+        </div>
+
+        <p className="mt-2 text-[10px] text-white/60 leading-snug">
+          {weatherSummary.advice}
+        </p>
+      </>
+    ) : (
+      <p className="mt-1 text-[11px] text-amber-200">{weatherError}</p>
+    )}
+  </div>
+)}
+          </div>    
 
               <div
                 data-aos="fade-left"
