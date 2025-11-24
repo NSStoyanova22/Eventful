@@ -11,6 +11,7 @@ import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
 
 import { cn } from "@/app/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useTranslation } from "react-i18next"
 
 type HighlightedEventInput = {
   id?: string
@@ -235,6 +236,7 @@ function CalendarDayButton({
   highlightedEvents?: HighlightedEventByDay[]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const { t } = useTranslation()
 
   const ref = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
@@ -272,12 +274,14 @@ function CalendarDayButton({
       {hasEvents && (
         <div className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-3 w-60 -translate-x-1/2 rounded-2xl border border-white/10 bg-slate-950/95 p-3 text-left text-white opacity-0 shadow-2xl transition group-hover:visible group-hover:opacity-100">
           <p className="text-xs uppercase tracking-[0.4em] text-white/60">
-            {highlightedEvents.length > 1
-              ? `${highlightedEvents.length} events`
-              : "Event"}
+            {(highlightedEvents?.length ?? 0) > 1
+              ? t("calendar_tooltip_label_many", {
+                  count: highlightedEvents?.length ?? 0,
+                })
+              : t("calendar_tooltip_label_one")}
           </p>
           <div className="mt-2 space-y-3">
-            {highlightedEvents.map((event) => (
+            {highlightedEvents?.map((event) => (
               <div
                 key={`${event.id}-${event.title}`}
                 className="pointer-events-auto rounded-xl border border-white/10 bg-white/5 p-3 text-sm"
@@ -303,7 +307,7 @@ function CalendarDayButton({
                     href={event.href}
                     className="mt-2 inline-flex items-center text-xs font-semibold text-blue-300 hover:text-blue-200"
                   >
-                    View event →
+                    {t("calendar_view_event")}
                   </Link>
                 )}
               </div>

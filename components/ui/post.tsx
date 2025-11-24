@@ -187,8 +187,16 @@ export default function Post({ post, hideComment }: PostProps) {
       process.env.NEXT_PUBLIC_BASE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");
     const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${post._id}`;
-    const locationLine = post.location?.name ? ` at ${post.location.name}` : "";
-    const message = `Join me at "${post.title}"${locationLine} on Eventful: ${eventUrl}`;
+    const message = post.location?.name
+      ? t("event_share_clipboard_with_location", {
+          title: post.title,
+          location: post.location.name,
+          url: eventUrl,
+        })
+      : t("event_share_clipboard", {
+          title: post.title,
+          url: eventUrl,
+        });
 
     try {
       if (navigator?.clipboard?.writeText) {
@@ -204,13 +212,13 @@ export default function Post({ post, hideComment }: PostProps) {
         document.execCommand("copy");
         document.body.removeChild(textArea);
       }
-      toast("Event link copied!", {
-        description: "Share it with your friends.",
+      toast.success(t("event_share_toast_title"), {
+        description: t("event_share_toast_hint"),
         icon: <Share2 className="h-4 w-4" />,
       });
     } catch (error) {
       console.error("Failed to copy event link:", error);
-      toast.error("Unable to copy event link");
+      toast.error(t("event_share_error"));
     }
   };
 
@@ -304,7 +312,7 @@ export default function Post({ post, hideComment }: PostProps) {
               className="inline-flex items-center gap-2 rounded-full border border-blue-100 px-4 py-2 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
             >
               <Share2 className="h-4 w-4" />
-              Share
+              {t("event_share_button")}
             </button>
             <Link href={`/events/${post._id.toString()}`}>
               <button className="rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5">

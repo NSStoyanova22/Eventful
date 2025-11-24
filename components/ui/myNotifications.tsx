@@ -55,7 +55,7 @@ export default function MyNotifications() {
           className="relative ml-auto flex items-center justify-center"
           onClick={handleClick}
         >
-          <NotificationIcon className="h-8 w-8 text-sky-800" />
+          <NotificationIcon className="h-7 w-7 text-slate-300" />
         </button>
       </div>
       <NotificationDialog

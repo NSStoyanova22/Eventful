@@ -3,7 +3,7 @@ import * as React from "react"
 import { useEffect, useState } from 'react';
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu"
 import { cva } from "class-variance-authority"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Search } from "lucide-react"
 import Link from "next/link"
 import "@/app/script"
 import { cn } from "@/app/utils"
@@ -215,179 +215,161 @@ export default function Navbar() {
     return () => window.removeEventListener('profileImageUpdated', handleImageUpdate);
   }, [session?.user?.email]);
 
-  return (
-    <>
-      <div className="w-full">
-      <NavigationMenu className="px-4 flex items-center justify-between w-full">
-        <NavigationMenuList className="w-full">
-        {/* hamburger menu */}
-        <div className="flex-row items-center flex space-x-4 w-full">
-          <NavigationMenuItem>
-          <div className="flex">
-            {/* Sidenav */}
+return (
+  <div className="w-full">
+    <NavigationMenu className="px-4 w-full py-2">
+      <NavigationMenuList
+        className="
+          grid w-full items-center gap-4
+          grid-cols-[auto_auto_1fr_auto_auto_auto]
+        "
+      >
+        {/* 1) Hamburger + SideNav */}
+        <NavigationMenuItem className="flex items-center">
+          <div className="flex items-center">
             <nav
-                  id="sidenav-1"
-                  className={cn(
-                    "fixed top-[3rem] left-0 h-[calc(100%-3rem)]",
-                    `bg-gradient-to-b to-blue-50 from-white 
-                     p-4 transition-transform transform 
-                     ${isOpen ? "translate-x-0" : "-translate-x-full"}`
-                  )}
-                >
-                  <ul className="space-y-2 flex flex-col items-center">
-                    {session ? (
-                      <>
-                       
-                       <li className="mb-4 w-full text-center">
-                          <div className="flex flex-col items-center space-y-2">
-                            {/* Avatar */}
-                            <Avatar className="h-14 w-14">
-                              <AvatarImage
-                                src={
-                                  user?.image
-                                    ? user?.image
-                                    : "https://cdn.pfps.gg/pfps/2301-default-2.png"
-                                }
-                              />
-                              <AvatarFallback>
-                                {firstName?.at(0)?.toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-
-                            {/* Full name */}
-                            <h1 className="text-xl font-semibold">
-                              {user?.name + " " + user?.lastName}
-                            </h1>
-
-                            {/* Username */}
-                            <h2 className="text-lg text-slate-700">
-                              @{user?.username}
-                            </h2>
-
-                            {/* View Profile link */}
-                            <Link
-                              href={profileHref}
-                              className="text-sky-700 hover:underline text-sm"
-                            >
-                              {t("viewprofile")}
-                            </Link>
-                          </div>
-                        </li>
-                        <li className="text-gray-600 font-bold w-full text-center">
-                        {t("text1side")} <br /> {t("text2side")}
-                        </li>
-                        <li>
-                          <CreateButtonSide />
-                        </li>
-                       
-                        
-                        <li className="text-gray-600 w-full text-center pt-8">
-                          <ThemeChanger />
-                        </li>
-                        <li>
-                          <LanguageChanger />
-                        </li>
-                      </>
-                    ) : (
-                      <>
-                        <h3 className="font-bold text-gray-700 text-center">
-                          Nothing here <br /> unless you
-                        </h3>
-                        <Link href="/login">
-                          <Button
-                            type="button"
-                            className="px-9 bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                          >
-                            Log in
-                          </Button>
-                        </Link>
-                        <h3 className="font-bold text-gray-700">or</h3>
-                        <Link href="/signup">
-                          <Button
-                            type="button"
-                            className="px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                          >
-                            Sign up
-                          </Button>
-                        </Link>
-                      </>
-                    )}
-                  </ul>
-                </nav>
-
-
-                  {/* Toggler */}
-                  <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="navbar-toggler focus:outline-none"
-                    aria-controls="navbarToggleExternalContent10"
-                    aria-expanded={isOpen}
-                    aria-label="Toggle navigation"
-                  >
-                    <div className="flex flex-col items-center justify-center space-y-[0.15rem]">
-                      <span className="block w-8 h-1 rounded bg-slate-400"></span>
-                      <span className="block w-8 h-1 rounded bg-slate-400"></span>
-                      <span className="block w-8 h-1 rounded bg-slate-400"></span>
-                    </div>
-                  </button>
-                </div>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                {/* add icon */}
-                <Link href="/">
-                  <span className="font-bold text-2xl ml-3 cursor-pointer">
-                    Eventful
-                  </span>
-                </Link>
-              </NavigationMenuItem>
-            </div>
-            <div className="flex-row items-center flex w-full justify-end space-x-4">
-              <NavigationMenuItem>
-                <SearchBar />
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                {/* search */}
-                <button>
-                  <div className="relative inline-block w-10 h-10 mt-2">
-                    <div className="absolute top-1 left-1 w-[1.4rem] h-[1.4rem] border-[0.28rem] border-sky-800 rounded-full"></div>
-                    <div className="absolute mr-[0.83rem] mb-[0.6rem]  bottom-0 right-0 w-2 h-[0.35rem] bg-sky-800 transform rotate-45 origin-bottom-right"></div>
-                  </div>
-                </button>
-              </NavigationMenuItem>
-              {session ? (
-                <>
-                  {/* the add button */}
-                  <NavigationMenuItem>
-                    <CreateButtonNav />
-                  </NavigationMenuItem>
-                  <div className="flex-row items-center flex space-x-4 ">
-                    {/* notification button */}
-                    <NavigationMenuItem>
-                      <MyNotifications />
-                    </NavigationMenuItem>
-                    {/* avatar */}
-                    <NavigationMenuItem className=" flex  justify-end">
-                      <Link href={profileHref}><Avatar className="ml-8 flex items-center  justify-end">
-                        <AvatarImage src={user?.image ? user?.image : "https://cdn.pfps.gg/pfps/2301-default-2.png"}></AvatarImage>
-                        <AvatarFallback>{firstName?.at(0)?.toUpperCase()}</AvatarFallback>
-                        {/* this here ^ are the initials of the person which appear when the avatar does not load */}
-                      </Avatar></Link>
-                    </NavigationMenuItem>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Link href="/login"><Button type="button" className="px-9 bg-slate-500 font-bold" >Log in</Button></Link>
-                  <h3 className="font-bold text-slate-600 ">or</h3>
-                  <Link href="/signup"><Button type="button" className="px-8 bg-slate-500 font-bold" >Sign up</Button></Link>
-                </>
+              className={cn(
+                "fixed top-12 mt-4 left-0 h-[calc(100%-3rem)] bg-black/30 backdrop-blur-sm p-4 transition-transform",
+                isOpen ? "translate-x-0" : "-translate-x-full"
               )}
-            </div>
-          </NavigationMenuList>
-        </NavigationMenu>
-      </div>
-    </>
-  )
+            >
+              <ul className="space-y-4 w-full text-center">
+                {session ? (
+                  <>
+                    <li className="flex flex-col items-center space-y-2">
+                      <Avatar className="h-16 w-16 rounded-full overflow-hidden">
+                        <AvatarImage
+                          className="h-full w-full object-cover"
+                          src={
+                            user?.image ??
+                            "https://cdn.pfps.gg/pfps/2301-default-2.png"
+                          }
+                        />
+                        <AvatarFallback>
+                          {firstName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <h1 className="text-xl font-semibold">
+                        {user?.name + " " + user?.lastName}
+                      </h1>
+                      <h2 className="text-md text-slate-700">
+                        @{user?.username}
+                      </h2>
+
+                      <Link
+                        href={profileHref}
+                        className="text-blue-700 hover:underline text-sm"
+                      >
+                        {t("viewprofile")}
+                      </Link>
+                    </li>
+
+                    <li className="text-gray-600 text-sm">
+                      {t("text1side")}<br />{t("text2side")}
+                    </li>
+
+                    <li><CreateButtonSide /></li>
+                    
+                    <li><LanguageChanger /></li>
+                  </>
+                ) : (
+                  <>
+                    <li className="font-bold text-gray-700">
+                      Nothing here unless you
+                    </li>
+                    <li>
+                      <Link href="/login">
+                        <Button className="px-9 bg-blue-600">Log in</Button>
+                      </Link>
+                    </li>
+                    <li className="font-bold text-gray-700">or</li>
+                    <li>
+                      <Link href="/signup">
+                        <Button className="px-9 bg-blue-600">Sign up</Button>
+                      </Link>
+                    </li>
+                  </>
+                )}
+              </ul>
+            </nav>
+
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex flex-col space-y-[0.20rem]"
+            >
+              <span className="block w-8 h-1 bg-slate-400 rounded"></span>
+              <span className="block w-8 h-1 bg-slate-400 rounded"></span>
+              <span className="block w-8 h-1 bg-slate-400 rounded"></span>
+            </button>
+          </div>
+        </NavigationMenuItem>
+
+        {/* 2) Logo */}
+        <NavigationMenuItem>
+          <Link href="/" className="font-bold text-2xl cursor-pointer">
+            Eventful
+          </Link>
+        </NavigationMenuItem>
+
+        {/* 3) Search area (1fr wide) = SearchBar + icon side-by-side */}
+        <NavigationMenuItem className="flex w-full items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <SearchBar />
+          </div>
+
+          <button
+            type="button"
+            aria-label="Search"
+            className="shrink-0 rounded-full p-2 hover:bg-white/10 transition"
+          >
+            <Search className="h-8 w-8 text-slate-300 " />
+          </button>
+        </NavigationMenuItem>
+
+        {/* 4) Notifications */}
+        {session && (
+          <NavigationMenuItem className="flex justify-center">
+            <MyNotifications />
+          </NavigationMenuItem>
+        )}
+
+        {/* 5) Create button */}
+        {session ? (
+          <NavigationMenuItem className="flex justify-center">
+            <CreateButtonNav />
+          </NavigationMenuItem>
+        ) : (
+          <NavigationMenuItem className="flex items-center gap-2 justify-end">
+            <Link href="/login">
+              <Button className="px-6 bg-slate-500">Log in</Button>
+            </Link>
+          </NavigationMenuItem>
+        )}
+
+        {/* 6) Avatar */}
+        {session && (
+          <NavigationMenuItem className="flex justify-end">
+            <Link href={profileHref}>
+              <Avatar className="h-9 w-9 rounded-full overflow-hidden">
+  <AvatarImage
+    className="h-full w-full object-cover"
+    src={
+      user?.image ??
+      "https://cdn.pfps.gg/pfps/2301-default-2.png"
+    }
+  />
+  <AvatarFallback>
+    {firstName?.charAt(0)?.toUpperCase()}
+  </AvatarFallback>
+</Avatar>
+            </Link>
+          </NavigationMenuItem>
+        )}
+      </NavigationMenuList>
+    </NavigationMenu>
+  </div>
+);
 }
 
 export {

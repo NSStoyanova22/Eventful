@@ -35,6 +35,16 @@ export default function LanguageChanger() {
                     >
                         English
                     </DropdownMenuItem>
+                     <DropdownMenuItem
+                        onSelect={() => i18n.changeLanguage("de")}
+                    >
+                        German
+                    </DropdownMenuItem>
+                     <DropdownMenuItem
+                        onSelect={() => i18n.changeLanguage("fr")}
+                    >
+                        French
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                         onSelect={() => i18n.changeLanguage("bg")}
                     >

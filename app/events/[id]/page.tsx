@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { addNotificationToStorage } from "@/components/ui/notification-utils";
+import { useTranslation } from "react-i18next";
 
 
 interface Event {
@@ -100,35 +101,79 @@ export default function EventDetails() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const [hasJoined, setHasJoined] = useState(false);
+  const { t } = useTranslation();
   const [weatherSummary, setWeatherSummary] = useState<WeatherSummary | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+  const flaggedNotificationSent = useRef(false);
+  const weatherHeadline = useMemo(() => {
+    if (!weatherSummary) return null;
+    return t("event_weather_headline", {
+      temp: t(
+        `event_weather_profile_${weatherSummary.details.tempProfile ?? "warm"}`
+      ),
+      wind: t(
+        `event_weather_profile_${weatherSummary.details.windProfile ?? "calm"}`
+      ),
+    });
+  }, [weatherSummary, t]);
+  const weatherBadgeText = useMemo(() => {
+    if (!weatherSummary) return null;
+    return t("event_weather_badge", {
+      risk: t(
+        `event_weather_rain_${weatherSummary.details.rainRisk ?? "low"}`
+      ),
+    });
+  }, [weatherSummary, t]);
+  const weatherAdviceText = useMemo(() => {
+    if (!weatherSummary) return null;
+    const parts: string[] = [];
+    const details = weatherSummary.details;
+    if (details.rainRisk === "high") {
+      parts.push(t("event_weather_advice_rain_high"));
+    } else if (details.rainRisk === "medium") {
+      parts.push(t("event_weather_advice_rain_medium"));
+    }
+    if (details.tempProfile === "hot") {
+      parts.push(t("event_weather_advice_temp_hot"));
+    } else if (details.tempProfile === "cold") {
+      parts.push(t("event_weather_advice_temp_cold"));
+    }
+    if (details.windProfile === "windy") {
+      parts.push(t("event_weather_advice_wind_windy"));
+    }
+    if (!parts.length) {
+      parts.push(t("event_weather_advice_default"));
+    }
+    return parts.join(" ");
+  }, [weatherSummary, t]);
   // hydrate client session details with richer db data
   const { user } = useUser();
   const { events } = useEvents();
+  const sessionUserId = (session?.user as CustomSessionUser)?.id;
 
 useEffect(() => {
   if (!id || !events.length) return;
 
-    try {
-      const currentEvent = events.find((evt: any) => evt._id === id);
+  try {
+    const currentEvent = events.find((evt: any) => evt._id === id);
 
-      if (!currentEvent) {
-        setError("Event not found");
-        return;
-      }
-
-      setEvent(currentEvent as Event);
-
-      const userId = (session?.user as CustomSessionUser)?.id;
-      if (userId && currentEvent.attendees?.includes(userId)) {
-        setHasJoined(true);
-      }
-    } catch (err: any) {
-      console.error("Error finding event:", err);
-      setError("Error finding event");
+    if (!currentEvent) {
+      setError(t("event_page_not_found"));
+      return;
     }
-}, [id, events, session]);
+
+    setEvent(currentEvent as Event);
+    setError(null);
+
+    if (sessionUserId && currentEvent.attendees?.includes(sessionUserId)) {
+      setHasJoined(true);
+    }
+  } catch (err: any) {
+    console.error("Error finding event:", err);
+    setError(t("event_page_load_error"));
+  }
+}, [events, id, sessionUserId, t]);
 
 useEffect(() => {
   if (!event?.startDate) {
@@ -163,7 +208,7 @@ useEffect(() => {
     } catch (error: any) {
       if (error.name === "AbortError") return;
       console.error("Event weather error:", error);
-      setWeatherError(error.message || "Weather data unavailable.");
+      setWeatherError(t("event_weather_error"));
       setWeatherSummary(null);
     } finally {
       setWeatherLoading(false);
@@ -177,6 +222,7 @@ useEffect(() => {
   event?.location?.latitude,
   event?.location?.longitude,
   event?.location?.name,
+  t,
 ]);
 
   useEffect(() => {
@@ -211,10 +257,27 @@ useEffect(() => {
 
   const isHost = Boolean(
     event &&
-      user &&
-      (event.createdByName === user.username || creatorId === user._id)
+      ((sessionUserId && creatorId === sessionUserId) ||
+        (user?.username && event.createdByName === user.username) ||
+        (user?._id && creatorId === user._id))
   );
   const isFlagged = Boolean(isHost && event?.status === "flagged");
+  useEffect(() => {
+    if (!isFlagged || !event?.title) {
+      return;
+    }
+    if (!flaggedNotificationSent.current) {
+      const flaggedMessage = t("event_flagged_warning", {
+        title: event.title,
+      });
+      addNotificationToStorage(
+        { message: flaggedMessage, icon: "ShieldAlert" },
+        { dedupeByMessage: true }
+      );
+      toast(flaggedMessage);
+      flaggedNotificationSent.current = true;
+    }
+  }, [event?.title, isFlagged, t]);
 
   const eventToEdit = useMemo(() => {
     if (!event) return null;
@@ -241,11 +304,11 @@ useEffect(() => {
     if (!id) return;
     try {
       await axios.delete(`/api/events/${id}`);
-      toast("Event deleted");
+      toast.success(t("event_delete_success"));
       router.push("/created-events");
     } catch (deleteError) {
       console.error("Error deleting event:", deleteError);
-      toast("Failed to delete event");
+      toast.error(t("event_delete_error"));
     }
   };
 
@@ -277,12 +340,12 @@ useEffect(() => {
   // allow guests to join or see confirmation state
   const handleJoin = async () => {
     if (!session?.user) {
-      toast("You must be logged in to join");
+      toast(t("You must be logged in to join"));
       return;
     }
     const userId = (session.user as CustomSessionUser)?.id;
     if (!userId) {
-      toast("User ID not found");
+      toast(t("User ID not found"));
       return;
     }
 
@@ -302,7 +365,10 @@ useEffect(() => {
             }
             : prev
         );
-        const message = ("Joined " + event?.title + " by " + event?.createdByName + "!");
+        const message = t("event_join_success_message", {
+          title: event?.title || t("event_title_fallback"),
+          host: event?.createdByName || t("event_unknown_host"),
+        });
         toast(message);
         addNotificationToStorage(
           { message, icon: "CalendarDays" },
@@ -310,9 +376,11 @@ useEffect(() => {
         );
       } else {
         console.error("Failed to join event");
+        toast.error(t("event_join_error"));
       }
     } catch (error) {
       console.error("Error joining event:", error);
+      toast.error(t("event_join_error"));
     } finally {
       setJoining(false);
     }
@@ -320,17 +388,17 @@ useEffect(() => {
 
   const handleAddComment = async () => {
     if (!session?.user) {
-      toast("You must be logged in to comment");
+      toast(t("You must be logged in to comment"));
       return;
     }
     if (!newComment.trim()) {
-      toast("Write something before sending");
+      toast(t("Write something before sending"));
       return;
     }
 
     const userId = (session.user as CustomSessionUser)?.id;
     if (!userId) {
-      toast("User information missing");
+      toast(t("User information missing"));
       return;
     }
 
@@ -338,7 +406,7 @@ useEffect(() => {
       [user?.name, user?.lastName].filter(Boolean).join(" ").trim() ||
       user?.username ||
       session.user.name ||
-      "Guest";
+      t("event_guest_fallback");
 
     const userImage =
       user?.image ||
@@ -361,11 +429,11 @@ useEffect(() => {
           detail: { eventId: id } 
         }));
       } else {
-        toast("Unable to add comment");
+        toast(t("Unable to add comment"));
       }
     } catch (commentError) {
       console.error("Error adding comment:", commentError);
-      toast("Error adding comment");
+      toast(t("Error adding comment"));
     } finally {
       setAddingComment(false);
     }
@@ -378,7 +446,7 @@ useEffect(() => {
 
     const userId = (session.user as CustomSessionUser)?.id;
     if (!userId) {
-      toast("User information missing");
+      toast(t("User information missing"));
       return;
     }
 
@@ -392,20 +460,20 @@ useEffect(() => {
 
       if (response.status === 200) {
         setComments((prev) => prev.filter((c) => c._id !== commentToDelete));
-        toast("Comment deleted");
-        
-        window.dispatchEvent(new CustomEvent('commentUpdated', { 
-          detail: { eventId: id } 
+        toast(t("Comment deleted"));
+
+        window.dispatchEvent(new CustomEvent('commentUpdated', {
+          detail: { eventId: id }
         }));
       } else {
-        toast("Unable to delete comment");
+        toast(t("Unable to delete comment"));
       }
     } catch (error: any) {
       console.error("Error deleting comment:", error);
       if (error.response?.status === 403) {
-        toast("You can only delete your own comments");
+        toast(t("You can only delete your own comments"));
       } else {
-        toast("Error deleting comment");
+        toast(t("Error deleting comment"));
       }
     } finally {
       setCommentToDelete(null);
@@ -418,8 +486,16 @@ useEffect(() => {
       process.env.NEXT_PUBLIC_BASE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");
     const eventUrl = `${(baseUrl || "").replace(/\/$/, "")}/events/${event._id}`;
-    const locationLine = event.location?.name ? ` at ${event.location.name}` : "";
-    const message = `Join me at "${event.title}"${locationLine} on Eventful: ${eventUrl}`;
+    const message = event.location?.name
+      ? t("event_share_clipboard_with_location", {
+          title: event.title,
+          location: event.location.name,
+          url: eventUrl,
+        })
+      : t("event_share_clipboard", {
+          title: event.title,
+          url: eventUrl,
+        });
 
     try {
       if (navigator?.clipboard?.writeText) {
@@ -435,19 +511,25 @@ useEffect(() => {
         document.execCommand("copy");
         document.body.removeChild(textArea);
       }
-      toast("Event link copied!");
+      toast.success(t("event_share_toast_title"), {
+        description: t("event_share_toast_hint"),
+      });
     } catch (error) {
       console.error("Failed to copy event link:", error);
-      toast.error("Unable to copy event link");
+      toast.error(t("event_share_error"));
     }
   };
 
   if (error) {
-    return <div>{error}</div>;
+    return <div className="p-6 text-center text-white/80">{error}</div>;
   }
 
   if (!event) {
-    return <div>Loading event...</div>;
+    return (
+      <div className="p-6 text-center text-white/80">
+        {t("event_page_loading")}
+      </div>
+    );
   }
 
   const eventDate = event.startDate ? new Date(event.startDate) : null;
@@ -458,10 +540,10 @@ useEffect(() => {
         day: "numeric",
         year: "numeric",
       })
-    : "TBA";
+    : t("event_tba");
   const formattedTime = eventDate
     ? eventDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "TBA";
+    : t("event_tba");
   const heroImage =
     (event as any)?.image ||
     "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80";
@@ -477,7 +559,7 @@ useEffect(() => {
             className="flex items-center gap-2 text-sm text-white/70 transition hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {t("event_back_button")}
           </button>
           {isFlagged && (
             <div className="rounded-3xl border border-yellow-500/40 bg-yellow-900/30 p-5 text-sm text-yellow-100 shadow-[0_20px_60px_rgba(190,152,52,0.25)]">
@@ -485,10 +567,11 @@ useEffect(() => {
                 <div className="flex items-start gap-3">
                   <ShieldAlert className="mt-1 h-5 w-5 flex-shrink-0 text-yellow-300" />
                   <div>
-                    <p className="text-base font-semibold">Event flagged for review</p>
+                    <p className="text-base font-semibold">
+                      {t("event_flagged_card_title")}
+                    </p>
                     <p className="text-yellow-100/80">
-                      Only you can view this event right now. Update the details to remove
-                      sensitive wording or delete it if it was created by mistake.
+                      {t("event_flagged_card_description")}
                     </p>
                   </div>
                 </div>
@@ -499,14 +582,14 @@ useEffect(() => {
                     onClick={() => setEditDialogOpen(true)}
                   >
                     <PencilLine className="mr-2 h-4 w-4" />
-                    Update event
+                    {t("event_flagged_update_button")}
                   </Button>
                   <Button
                     variant="destructive"
                     onClick={() => setDeleteEventModalOpen(true)}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete event
+                    {t("event_flagged_delete_button")}
                   </Button>
                 </div>
               </div>
@@ -537,12 +620,12 @@ useEffect(() => {
                   </span>
                   {event.status === "flagged" && (
                     <span className="rounded-full bg-amber-500/30 px-4 py-1 text-xs font-semibold text-amber-100">
-                      Status: {event.status}
+                      {t("event_status_flagged_badge")}
                     </span>
                   )}
-                  {weatherSummary && (
+                  {weatherBadgeText && (
                     <span className="rounded-full bg-sky-500/20 px-4 py-1 text-xs font-semibold text-sky-100">
-                      Weather: {weatherSummary.details.rainRisk} rain risk
+                      {weatherBadgeText}
                     </span>
                   )}
                   <button
@@ -550,7 +633,7 @@ useEffect(() => {
                     className="ml-auto inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
                   >
                     <Share2 className="h-4 w-4" />
-                    Share
+                    {t("event_share_button")}
                   </button>
                 </div>
               </div>
@@ -560,13 +643,12 @@ useEffect(() => {
               <div data-aos="fade-up" className="space-y-6">
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                   <p className="text-sm uppercase tracking-[0.4em] text-white/60">
-                    Overview
+                    {t("event_overview_heading")}
                   </p>
                   <p className="mt-3 text-base text-white/80">
-                    Hosted by{" "}
-                    <span className="font-semibold text-white">
-                      {event.createdByName || "Unknown"}
-                    </span>
+                    {t("event_hosted_by", {
+                      host: event.createdByName || t("event_unknown_host"),
+                    })}
                   </p>
                   <p className="mt-4 text-lg text-white/85">
                     {event.description}
@@ -607,30 +689,59 @@ useEffect(() => {
              {(weatherSummary || weatherLoading || weatherError) && (
   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/80">
     <p className="text-[10px] uppercase tracking-[0.25em] text-white/50">
-      Weather
+      {t("event_weather_heading")}
     </p>
 
     {weatherLoading ? (
-      <p className="mt-1 text-white/70 text-xs">Checking forecast...</p>
+      <p className="mt-1 text-white/70 text-xs">
+        {t("event_weather_loading")}
+      </p>
     ) : weatherSummary ? (
       <>
         <p className="mt-1 text-sm font-semibold text-white leading-tight">
-          {weatherSummary.headline}
+          {weatherHeadline || weatherSummary.headline}
         </p>
 
         <div className="mt-2 grid grid-cols-2 gap-y-1 gap-x-3 text-[11px] text-white/70">
-          <span>Temp: {weatherSummary.details.temperature}</span>
-          <span>Rain: {weatherSummary.details.rainChance}%</span>
-          <span>Wind: {weatherSummary.details.wind} kph</span>
-          <span>Humidity: {weatherSummary.details.humidity}%</span>
+          <span>
+            {t("event_weather_temp", {
+              value: weatherSummary.details.temperature,
+              profile: t(
+                `event_weather_profile_${weatherSummary.details.tempProfile ?? "warm"}`
+              ),
+            })}
+          </span>
+          <span>
+            {t("event_weather_rain", {
+              value: weatherSummary.details.rainChance,
+              risk: t(
+                `event_weather_rain_${weatherSummary.details.rainRisk ?? "low"}`
+              ),
+            })}
+          </span>
+          <span>
+            {t("event_weather_wind", {
+              value: weatherSummary.details.wind,
+              profile: t(
+                `event_weather_profile_${weatherSummary.details.windProfile ?? "calm"}`
+              ),
+            })}
+          </span>
+          <span>
+            {t("event_weather_humidity", {
+              value: weatherSummary.details.humidity,
+            })}
+          </span>
         </div>
 
         <p className="mt-2 text-[10px] text-white/60 leading-snug">
-          {weatherSummary.advice}
+          {weatherAdviceText || weatherSummary.advice}
         </p>
       </>
     ) : (
-      <p className="mt-1 text-[11px] text-amber-200">{weatherError}</p>
+      <p className="mt-1 text-[11px] text-amber-200">
+        {weatherError || t("event_weather_error")}
+      </p>
     )}
   </div>
 )}

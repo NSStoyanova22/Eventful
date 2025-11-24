@@ -8,7 +8,7 @@ import { toast } from "sonner"
 
 export default function ThemeChanger() {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
-
+    theme === "dark"
 useEffect(() => {
     const root = document.documentElement;
     root.style.transition = "background-color 0.3s, color 0.3s";

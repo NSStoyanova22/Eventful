@@ -120,7 +120,10 @@ export async function PUT(request: Request, { params }: any) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Event updated", event: updatedEvent }, { status: 200 });
+    return NextResponse.json(
+      { message: "Event updated", event: updatedEvent, status: moderationStatus },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error updating event:", error);
     return NextResponse.json({ error: "Failed to update event" }, { status: 500 });

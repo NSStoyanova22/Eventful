@@ -67,10 +67,10 @@ export default function NotificationDialog({
             )}
           </div>
           <div className="mt-6 flex justify-end gap-4">
-            <Button onClick={() => onDelete(-1)} className="p-2 bg-clear text-sky-800 hover:bg-sky-200">Clear all</Button>
-            <Button onClick={onClose} variant="default" className="bg-sky-800 text-white">
-              Close
+            <Button onClick={() => onDelete(-1)} className="p-2 bg-clear text-sky-800 hover:bg-sky-200">
+              {t("notifications_clear_all")}
             </Button>
+            
           </div>
         </DialogContent>
       </DialogPortal>

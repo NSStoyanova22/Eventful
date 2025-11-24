@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/hover-card"
 import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
+import { useTranslation } from "react-i18next";
 
 type CountryOption = {
   code: string;
@@ -42,6 +43,7 @@ type CalendarHighlight = {
 export default function UserProfile() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const { t } = useTranslation();
   const [userSession, setUserSession] = useState(Object);
   const [imageSrc, setImageSrc] = useState('');
   const [posts, setPosts] = useState<any[]>([]);
@@ -259,15 +261,17 @@ export default function UserProfile() {
         return {
           id: event._id,
           date: start,
-          title: event.title || "Untitled event",
+          title: event.title || t("event_title_fallback"),
           time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           description: `${locationSnippet}${event.description?.slice(0, 100) ?? ""}`.trim(),
           href: `/events/${event._id}`,
-          role: isEventCreatedByCurrentUser(event) ? "Hosting" : "Attending",
+          role: isEventCreatedByCurrentUser(event)
+            ? t("calendar_role_hosting")
+            : t("calendar_role_attending"),
         } satisfies CalendarHighlight;
       })
       .filter(Boolean) as CalendarHighlight[];
-  }, [filteredEvents, attendingEvents]);
+  }, [attendingEvents, filteredEvents, t]);
 
 
 

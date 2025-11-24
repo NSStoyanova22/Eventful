@@ -1,5 +1,5 @@
 
-<h2 align="center">📅 EvenHub - Event Management App 📅</h2>
+<h2 align="center">📅 Eventful - Event Management App 📅</h2>
 
 ---
 
@@ -17,14 +17,14 @@
 ## ✨ Introduction
 
 <p align="justify">
- <b>EvenHub</b> is a <b>web application</b> built with <b>JavaScript, ReactJS, and Node.js</b>. Its primary goal is to simplify event organization while enhancing social interaction through these features:
+ <b>Eventful</b> is a <b>web application</b> built with <b>JavaScript, ReactJS, and Node.js</b>. Its primary goal is to simplify event organization while enhancing social interaction through these features:
 
 - <b>Event Creation & Management</b>: Organize public or private events with full control over visibility and participation.  
 - <b>User Engagement</b>: Register for events, upload images, and share experiences post-event.  
 - <b>Seamless Interface</b>: Designed for an intuitive user experience with a clean and modern UI.  
 
 <p align="center">
-    <i>"Plan, connect, and experience events like never before with EvenHub."</i>
+    <i>"Plan, connect, and experience events like never before with Eventful."</i>
 </p>
 
 ---
@@ -32,7 +32,7 @@
 ## 🛠 Technologies
 
 <p align="center">
-    <b>The following tools and technologies powered the development of EvenHub:</b>
+    <b>The following tools and technologies powered the development of Eventful:</b>
 </p>
 
 <div align="center">
@@ -43,7 +43,7 @@
 
 ## 🛡 Functionality Overview
 
-EvenHub provides a structured and efficient approach to event planning. Here’s an overview of its core functionalities:
+Eventful provides a structured and efficient approach to event planning. Here’s an overview of its core functionalities:
 
 - **User Authentication:** Secure sign-up and login with validation.  
 - **Event Dashboard:** Displays all created events, categorized for easy access.  
@@ -61,18 +61,18 @@ The app is built with a modular approach, using components such as:
 ---
 
 ## 💻 How to Run the App
-### Currently, EvenHub does not have an official release, so you will need to run it manually.
+### Currently, Eventful does not have an official release, so you will need to run it manually.
 
 Clone the repository:
    ```bash
-   git clone https://github.com/codingburgas/evenhub.git
+   git clone https://github.com/codingburgas/Eventful.git
 ```
 
 Navigate to the project directory and install dependencies:
 
 ```bash
 
-cd evenhub
+cd Eventful
 npm install
 ```
 Start the development server:
@@ -94,4 +94,4 @@ npm run dev
 
 # 👥 Team
 <p align="center"> <table> <tr> <th>Name</th> <th>Role</th> </tr> <tr> <td align="center"><b>🟦 Ани Везирова</b></td> <td align="center">Frontend Developer</td> </tr> <tr> <td align="center"><b>🟦 Никол Стоянова</b></td> <td align="center">Backend Developer</td> </tr> </table> </p> <br /> <br /> <br /> <br />
-<p align="center"> <i>Thank you for checking out EvenHub! 🚀 If you like our work, consider giving a ⭐ to support the project!</i> </p> 
+<p align="center"> <i>Thank you for checking out Eventful! 🚀 If you like our work, consider giving a ⭐ to support the project!</i> </p> 

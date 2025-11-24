@@ -63,7 +63,7 @@ export default function EventSearch() {
       <input
         type="search"
         placeholder={t("searchevent")}
-        className="w-[30rem] text-[0.9rem] text-slate-600 font-semibold ml-[25rem] px-4 py-2 border border-gray-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 shadow"
+        className="w-[30rem] text-[0.9rem] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900  font-semibold ml-[25rem] px-4 py-2 border border-gray-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 shadow"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />

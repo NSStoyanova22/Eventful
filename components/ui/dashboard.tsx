@@ -149,10 +149,10 @@ export default function Dashboard() {
               {hourMessage}
             </p>
             <h1 className="text-4xl font-semibold leading-tight md:text-5xl">
-              {user ? `${user.name} ${user.lastName}` : "Creator"}, ready to craft your next event?
+              {user ? `${user.name} ${user.lastName}` : "Creator"}{t(" , ready to craft your next event?")}
             </h1>
             <p className="text-sm text-white/70 md:text-base">
-              Track attending guests, share memories from finished events, and discover trending experiences tailored for you.
+              {t("Track attending guests, share memories from finished events, and discover trending experiences tailored for you.")}
             </p>
           </div>
           <div className="flex flex-col gap-3 text-sm">
@@ -160,13 +160,13 @@ export default function Dashboard() {
               href="/created-events"
               className="rounded-full bg-white px-6 py-3 text-center font-semibold text-slate-900 shadow-lg shadow-blue-900/40 transition hover:-translate-y-0.5"
             >
-              Manage my events
+              {t("Manage my events")}
             </Link>
             <Link
               href={profileHref}
               className="rounded-full border border-white/30 px-6 py-3 text-center font-semibold text-white/90 transition hover:bg-white/10"
             >
-              View profile
+              {t("View profile")}
             </Link>
           </div>
         </div>
@@ -214,7 +214,7 @@ export default function Dashboard() {
               <p className="text-sm uppercase tracking-[0.4em] text-blue-200/80">
                 {t("attending")}
               </p>
-              <h2 className="text-2xl font-semibold">Your next stop</h2>
+              <h2 className="text-2xl font-semibold">{t("yournextstop")}</h2>
             </div>
             <Link href="/attending" className="text-sm font-semibold text-blue-200 hover:text-white">
               {t("showall")}
@@ -276,8 +276,7 @@ export default function Dashboard() {
               <p className="text-sm uppercase tracking-[0.4em] text-slate-400">
                 {t("finished")}
               </p>
-              <h2 className="text-2xl font-semibold">Share highlights</h2>
-            </div>
+                <h2 className="text-2xl font-semibold">{t("sharehighlights")}</h2>            </div>
             <Link href="/finished-events" className="text-sm font-semibold text-blue-600">
               {t("showall")}
             </Link>
@@ -302,7 +301,7 @@ export default function Dashboard() {
                     disabled={uploading}
                     className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {uploading ? t("upload") : "Share memory"}
+                    {uploading ? t("upload") : t("sharememory")}
                   </button>
                 </div>
               </div>
@@ -350,8 +349,7 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-200/70">No public events available right now.</p>
-        )}
+          <p className="text-sm text-slate-200/70">{t("nopublicevents")}</p>        )}
       </section>
 
       <section
@@ -360,7 +358,7 @@ export default function Dashboard() {
       >
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-3xl font-semibold text-slate-900">{t("hot")}</h2>
-          <p className="text-sm text-slate-500">Most popular this week</p>
+          <p className="text-sm text-slate-500">{t("mostpopularweek")}</p>
         </div>
         <div className="space-y-6">
           {[...filteredEvents]
