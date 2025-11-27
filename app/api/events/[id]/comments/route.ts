@@ -2,6 +2,19 @@ import { NextResponse } from "next/server";
 import { connect } from "@/app/config/dbConfig";
 import Event from "@/app/models/event"; 
 import mongoose from "mongoose";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+const canAccessComments = (event: any, userId?: string | null) => {
+  const creatorId = event?.createdBy?.toString?.();
+  const attendeeIds = (event?.attendees || []).map((attendee: any) =>
+    attendee?._id?.toString?.() ?? attendee?.toString?.()
+  );
+  const isHost = Boolean(userId && creatorId && creatorId === userId);
+  const isAttendee = Boolean(userId && attendeeIds.includes(userId));
+
+  return Boolean(event?.isPublic || isHost || isAttendee);
+};
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   if (!params.id) {
@@ -16,10 +29,26 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ message: "⚠️ Event not found" }, { status: 404 });
     }
 
+    const session = await getServerSession(authOptions);
+    const requesterId = session?.user?.id?.toString();
+    if (!canAccessComments(event, requesterId)) {
+      return NextResponse.json(
+        { message: "⚠️ You need host approval to interact with this private event" },
+        { status: 403 }
+      );
+    }
+
     const { text, userId, userName, userImage } = await req.json();
 
     if (!text || !userId || !userName || !userImage) {
       return NextResponse.json({ message: "⚠️ Missing comment text, user ID, name, or image" }, { status: 400 });
+    }
+
+    if (requesterId && requesterId !== userId) {
+      return NextResponse.json(
+        { message: "⚠️ Comment author does not match the logged in user" },
+        { status: 403 }
+      );
     }
     
     if (!Array.isArray(event.comments)) {
@@ -58,6 +87,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ message: "⚠️ Event not found" }, { status: 404 });
     }
 
+    const session = await getServerSession(authOptions);
+    const requesterId = session?.user?.id?.toString();
+    if (!canAccessComments(event, requesterId)) {
+      return NextResponse.json(
+        { message: "⚠️ You need host approval to view this conversation" },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({ comments: event.comments || [] }, { status: 200 });
   } catch (error) {
     console.error("❌ Error fetching comments:", error);
@@ -82,6 +120,15 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     if (!event) {
       return NextResponse.json({ message: "⚠️ Event not found" }, { status: 404 });
+    }
+
+    const session = await getServerSession(authOptions);
+    const requesterId = session?.user?.id?.toString();
+    if (!canAccessComments(event, requesterId)) {
+      return NextResponse.json(
+        { message: "⚠️ You need host approval to manage comments for this event" },
+        { status: 403 }
+      );
     }
 
     const commentIndex = event.comments.findIndex(

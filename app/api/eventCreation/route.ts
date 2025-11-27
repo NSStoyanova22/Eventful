@@ -8,6 +8,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { geocodeLocation } from "@/app/lib/geocode";
 
+const normalizeLocation = (event: any) => ({
+  name: event.location || "",
+  formatted: event.locationFormatted || event.location || "",
+  latitude: event.locationLatitude ?? undefined,
+  longitude: event.locationLongitude ?? undefined,
+});
+
 export async function POST(req: NextRequest) {
   try {
     await connect();
@@ -186,20 +193,43 @@ export async function GET(req: NextRequest) {
     // Map the data to the expected format
     const eventsWithUserDetails = filteredEvents.map((event: any) => {
       const user = userMap.get(event.createdBy?.toString());
+      const attendeeIds = (event.attendees || []).map((att: any) =>
+        att?._id?.toString?.() ?? att?.toString?.()
+      );
+      const isHost = Boolean(requesterId && event.createdBy?.toString() === requesterId);
+      const isAttendee = Boolean(requesterId && attendeeIds.includes(requesterId));
+      const canViewDetails = Boolean(event.isPublic || isHost || isAttendee);
+      const requestStatus =
+        (event as any)?.joinRequests?.find(
+          (req: any) => req?.user?.toString?.() === requesterId
+        )?.status || "none";
+
       const normalizedLocation = {
-        name: event.location || "",
-        formatted: event.locationFormatted || event.location || "",
-        latitude: event.locationLatitude ?? undefined,
-        longitude: event.locationLongitude ?? undefined,
+        ...normalizeLocation(event),
+        ...(canViewDetails
+          ? {}
+          : { name: "Hidden until host approves your request", formatted: "" }),
       };
-      return {
+
+      const safeEvent = {
         ...event,
         _id: event._id.toString(),
         createdByName: event.createdByName || user?.username || "Eventful Host",
         // Use user image URL (now lightweight) or default
         createdByImage: user?.image || "https://cdn.pfps.gg/pfps/2301-default-2.png",
         location: normalizedLocation,
+        attendees: attendeeIds,
+        requestStatus,
+        canViewDetails,
+        joinRequests: isHost ? event.joinRequests || [] : [],
       };
+
+      if (!canViewDetails && !event.isPublic) {
+        safeEvent.description = "";
+        safeEvent.photos = [];
+      }
+
+      return safeEvent;
     });
 
     return NextResponse.json({ events: eventsWithUserDetails });

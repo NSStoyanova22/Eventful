@@ -26,22 +26,74 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       event.attendees = [];
     }
 
-    const alreadyJoined = event.attendees.some((uid: string | ObjectId) =>
-      uid.toString() === userId
-    );
-
-    if (alreadyJoined) {
-      return NextResponse.json({ message: "⚠️ Already joined" }, { status: 400 });
+    if (!Array.isArray(event.joinRequests)) {
+      (event as any).joinRequests = [];
     }
 
-    event.attendees.push(new ObjectId(userId));
-    event.attending = (event.attending ?? 0) + 1;
+    const alreadyJoined = event.attendees.some((uid: string | ObjectId) => uid.toString() === userId);
+
+    if (alreadyJoined) {
+      return NextResponse.json(
+        { message: "⚠️ Already joined", requestStatus: "approved" },
+        { status: 200 }
+      );
+    }
+
+    const existingRequest = (event as any).joinRequests.find(
+      (req: any) => req?.user?.toString?.() === userId
+    );
+
+    if (event.isPublic) {
+      event.attendees.push(new ObjectId(userId));
+      event.attending = (event.attending ?? 0) + 1;
+
+      await event.save();
+
+      return NextResponse.json(
+        { message: "✅ Joined event successfully", attending: event.attending, requestStatus: "approved" },
+        { status: 200 }
+      );
+    }
+
+    if (existingRequest?.status === "pending") {
+      return NextResponse.json(
+        { message: "⏳ Join request already pending", requestStatus: "pending" },
+        { status: 200 }
+      );
+    }
+
+    if (existingRequest?.status === "approved") {
+      // Ensure the attendee list stays in sync if it was approved previously
+      event.attendees.push(new ObjectId(userId));
+      event.attending = (event.attending ?? 0) + 1;
+
+      await event.save();
+
+      return NextResponse.json(
+        { message: "✅ Already approved for this event", attending: event.attending, requestStatus: "approved" },
+        { status: 200 }
+      );
+    }
+
+    if (existingRequest?.status === "declined") {
+      existingRequest.status = "pending";
+      existingRequest.createdAt = new Date();
+    } else {
+      (event as any).joinRequests.push({
+        user: new ObjectId(userId),
+        status: "pending",
+        createdAt: new Date(),
+      });
+    }
 
     await event.save();
 
     return NextResponse.json(
-      { message: "✅ Joined event successfully", attending: event.attending },
-      { status: 200 }
+      {
+        message: "✅ Join request sent to host",
+        requestStatus: "pending",
+      },
+      { status: 202 }
     );
   } catch (error) {
     console.error("❌ Error joining event:", error);
