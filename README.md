@@ -17,7 +17,7 @@
 ## ✨ Introduction
 
 <p align="justify">
- <b>Eventful</b> is a <b>web application</b> built with <b>JavaScript, ReactJS, and Node.js</b>. Its primary goal is to simplify event organization while enhancing social interaction through these features:
+ <b>Eventful</b> is a <b>web application</b> built with <b>TypeScript, ReactJS, and Node.js</b>. Its primary goal is to simplify event organization while enhancing social interaction through these features:
 
 - <b>Event Creation & Management</b>: Organize public or private events with full control over visibility and participation.  
 - <b>User Engagement</b>: Register for events, upload images, and share experiences post-event.  
@@ -36,7 +36,7 @@
 </p>
 
 <div align="center">
-    <img src="https://skillicons.dev/icons?i=react,nodejs,mongodb,tailwind,js,git,github" alt="Technologies" width="60%">
+    <img src="https://skillicons.dev/icons?i=react,nodejs,mongodb,tailwind,ts,git,github" alt="Technologies" width="60%">
 </div>
 
 ---
@@ -50,7 +50,8 @@ Eventful provides a structured and efficient approach to event planning. Here’
 - **Event Creation & Editing:** Allows users to customize event details, including visibility (public/private).  
 - **AI-Powered Analytics:** Predicts engagement trends and provides event insights.  
 - **Interactive Calendar:** Shows event schedules, weather forecasts, and similar event recommendations.  
-- **File Upload & Sharing:** Users can upload photos and share experiences post-event.  
+- **File Upload & Sharing:** Users can upload photos and share experiences post-event.
+- **Weather Diagnostics:** Planning an event in a week prior is made easy.
 
 The app is built with a modular approach, using components such as:
 
@@ -65,7 +66,7 @@ The app is built with a modular approach, using components such as:
 
 Clone the repository:
    ```bash
-   git clone https://github.com/codingburgas/Eventful.git
+   git clone [https://github.com/codingburgas/Eventful.git](https://github.com/NSStoyanova22/Eventful.git)
 ```
 
 Navigate to the project directory and install dependencies:
@@ -79,19 +80,12 @@ Start the development server:
 ```bash
 npm run dev
 ```
-<b>Shortcut to the Figma design</b> <br> <br> https://www.figma.com/design/qwqYFfGsY98Ew7eUUVVMzf/Eventful?node-id=0-1&node-type=canvas&t=pxEMd7OpAokQTtx0-0
+
 </div>
 
 ## 📂 Project Documents
 ### Code & Team Documentation
-[ 📄Documentation](https://codingburgas-my.sharepoint.com/:w:/r/personal/nsstoyanova22_codingburgas_bg/_layouts/15/Doc.aspx?sourcedoc=%7BFA71C9A6-20DA-466D-AC09-B7E85837D84A%7D&file=726.docx&action=default&mobileredirect=true&wdOrigin=MARKETING.WORD.SIGNUP%2CAPPHOME-WEB.BANNER.UPLOAD&wdPreviousSession=b2010fca-71af-43d2-9e50-c622a0ab0e33&wdPreviousSessionSrc=AppHomeWeb&ct=1741298507877)
+[ 📄Documentation](https://codingburgas-my.sharepoint.com/:w:/r/personal/nsstoyanova22_codingburgas_bg/_layouts/15/Doc.aspx?sourcedoc=%7B8792E583-2B57-4C12-B084-7D242AF13370%7D&file=Eventful.docx&action=default&mobileredirect=true&DefaultItemOpen=1&wdOrigin=OFFICECOM-WEB.APPGALLERY%2CAPPHOME-WEB.JUMPBACKIN&wdPreviousSession=da561596-1d5d-43ad-90d4-f479a67b0322&wdPreviousSessionSrc=AppHomeWeb&ct=1763988132128)
 
 ### Presenting
-[✏Presentation](https://codingburgas-my.sharepoint.com/:p:/r/personal/nsstoyanova22_codingburgas_bg/_layouts/15/doc2.aspx?sourcedoc=%7B94048B89-FA06-4AEA-A60F-663FF4539DF4%7D&file=726.pptx&action=edit&mobileredirect=true&wdOrigin=SEARCHENGINE.GOOGLE%2CAPPHOME-WEB.BANNER.UPLOAD&wdPreviousSession=6fe897c7-512b-4a84-9b6f-a8d1b279d51c&wdPreviousSessionSrc=AppHomeWeb&ct=1741043298588)
-
-### Design
-[🎨Design](https://www.figma.com/design/qwqYFfGsY98Ew7eUUVVMzf/Eventful?node-id=0-1&node-type=canvas&t=pxEMd7OpAokQTtx0-0)
-
-# 👥 Team
-<p align="center"> <table> <tr> <th>Name</th> <th>Role</th> </tr> <tr> <td align="center"><b>🟦 Ани Везирова</b></td> <td align="center">Frontend Developer</td> </tr> <tr> <td align="center"><b>🟦 Никол Стоянова</b></td> <td align="center">Backend Developer</td> </tr> </table> </p> <br /> <br /> <br /> <br />
-<p align="center"> <i>Thank you for checking out Eventful! 🚀 If you like our work, consider giving a ⭐ to support the project!</i> </p> 
+[✏Presentation](https://codingburgas-my.sharepoint.com/:p:/r/personal/nsstoyanova22_codingburgas_bg/_layouts/15/Doc.aspx?sourcedoc=%7B28438E49-9B77-4C7F-BDE2-CAFE3BF41367%7D&file=Presentation%206.pptx&action=editNew&mobileredirect=true&wdOrigin=OFFICECOM-WEB.APPGALLERY%2CAPPHOME-WEB.BANNER.NEWBLANK&wdPreviousSession=907ffca2-577c-47ce-80f0-f08f1250db08&wdPreviousSessionSrc=AppHomeWeb&ct=1764010127757)
