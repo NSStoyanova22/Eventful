@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import { connect } from "@/app/config/dbConfig";
 import Event from "@/app/models/event";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+const canAccessPhotos = (event: any, userId?: string | null) => {
+  const creatorId = event?.createdBy?.toString?.();
+  const attendeeIds = (event?.attendees || []).map((attendee: any) =>
+    attendee?._id?.toString?.() ?? attendee?.toString?.()
+  );
+  const isHost = Boolean(userId && creatorId && creatorId === userId);
+  const isAttendee = Boolean(userId && attendeeIds.includes(userId));
+
+  return Boolean(event?.isPublic || isHost || isAttendee);
+};
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   if (!params.id) {
@@ -13,6 +26,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     if (!event) {
       return NextResponse.json({ message: "⚠️ Event not found" }, { status: 404 });
+    }
+
+    const session = await getServerSession(authOptions);
+    const requesterId = session?.user?.id?.toString();
+    if (!requesterId) {
+      return NextResponse.json({ message: "⚠️ Authentication required" }, { status: 401 });
+    }
+
+    if (!canAccessPhotos(event, requesterId)) {
+      return NextResponse.json(
+        { message: "⚠️ You need host approval to share photos for this event" },
+        { status: 403 }
+      );
     }
 
     const formData = await req.formData();
@@ -49,6 +75,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     if (!event) {
       return NextResponse.json({ message: "⚠️ Event not found" }, { status: 404 });
+    }
+
+    const session = await getServerSession(authOptions);
+    const requesterId = session?.user?.id?.toString();
+    if (!canAccessPhotos(event, requesterId)) {
+      return NextResponse.json(
+        { message: "⚠️ You need host approval to view photos for this event" },
+        { status: 403 }
+      );
     }
 
     const photos = event.photos?.map((photo: string) => {

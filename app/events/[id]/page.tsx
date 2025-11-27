@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
@@ -39,10 +39,13 @@ interface Event {
   status?: string;
   description: string;
   attending: number;
-  attendees?: string[];
+  attendees?: (string | Attendee)[];
   image?: string;
   isPublic?: boolean;
   guestLimit?: number;
+  joinRequests?: JoinRequest[];
+  requestStatus?: "none" | "pending" | "approved" | "declined";
+  canViewDetails?: boolean;
 }
 
 interface Comment {
@@ -84,6 +87,20 @@ type WeatherSummary = {
   advice: string;
 };
 
+interface JoinRequest {
+  _id: string;
+  status: "pending" | "approved" | "declined";
+  createdAt?: string;
+  user: {
+    _id?: string;
+    name?: string;
+    lastName?: string;
+    username?: string;
+    email?: string;
+    image?: string;
+  };
+}
+
 export default function EventDetails() {
   const { id } = useParams();
   const router = useRouter();
@@ -101,6 +118,10 @@ export default function EventDetails() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const [hasJoined, setHasJoined] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<"none" | "pending" | "approved" | "declined">("none");
+  const [canViewDetails, setCanViewDetails] = useState<boolean | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<JoinRequest[]>([]);
+  const [requestActionLoading, setRequestActionLoading] = useState<string | null>(null);
   const { t } = useTranslation();
   const [weatherSummary, setWeatherSummary] = useState<WeatherSummary | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
@@ -152,8 +173,50 @@ export default function EventDetails() {
   const { events } = useEvents();
   const sessionUserId = (session?.user as CustomSessionUser)?.id;
 
+  const mapAttendeeId = useCallback(
+    (attendee: any) => attendee?._id?.toString?.() ?? attendee?.toString?.() ?? "",
+    []
+  );
+
+  const normalizeAttendeeDetails = useCallback(
+    (attendees: any[]): Attendee[] =>
+      (attendees || []).map((attendee: any) => ({
+        _id: mapAttendeeId(attendee),
+        name: attendee?.name || "",
+        lastName: attendee?.lastName || "",
+        username: attendee?.username || "",
+        email: attendee?.email || "",
+        image: attendee?.image || "",
+      })),
+    [mapAttendeeId]
+  );
+
+  const isHostOfEvent = useCallback(
+    (evt: Event | null) => {
+      if (!evt) return false;
+      const creatorId =
+        typeof (evt as any)?.createdBy === "string"
+          ? (evt as any).createdBy
+          : (evt as any)?.createdBy?._id?.toString?.() ??
+            (evt as any)?.createdBy?.toString?.();
+
+      return Boolean(
+        (sessionUserId && creatorId === sessionUserId) ||
+          (user?.username && evt.createdByName === user.username) ||
+          (user?._id && creatorId === user._id)
+      );
+    },
+    [sessionUserId, user]
+  );
+
+  const isHost = isHostOfEvent(event);
+  const canSeeDetails =
+    typeof canViewDetails === "boolean"
+      ? canViewDetails
+      : Boolean((event?.isPublic ?? false) || isHost || hasJoined);
+
 useEffect(() => {
-  if (!id || !events.length) return;
+  if (!id || !events.length || event) return;
 
   try {
     const currentEvent = events.find((evt: any) => evt._id === id);
@@ -169,14 +232,77 @@ useEffect(() => {
     if (sessionUserId && currentEvent.attendees?.includes(sessionUserId)) {
       setHasJoined(true);
     }
+    if ((currentEvent as any)?.requestStatus) {
+      setRequestStatus((currentEvent as any).requestStatus);
+    }
+    if (typeof (currentEvent as any)?.canViewDetails === "boolean") {
+      setCanViewDetails((currentEvent as any).canViewDetails);
+    }
   } catch (err: any) {
     console.error("Error finding event:", err);
     setError(t("event_page_load_error"));
   }
-}, [events, id, sessionUserId, t]);
+}, [event, events, id, sessionUserId, t]);
+
+const refreshEventDetails = useCallback(async () => {
+  if (!id) return;
+  try {
+    const response = await axios.get(`/api/events/${id}`);
+    const fetchedEvent = response.data?.event as Event | undefined;
+    const statusFromServer = response.data?.requestStatus as
+      | "none"
+      | "pending"
+      | "approved"
+      | "declined"
+      | undefined;
+
+    if (typeof response.data?.canViewDetails === "boolean") {
+      setCanViewDetails(response.data.canViewDetails);
+    }
+
+    if (statusFromServer) {
+      setRequestStatus(statusFromServer);
+    }
+
+    if (!fetchedEvent) {
+      setError(t("event_page_not_found"));
+      return;
+    }
+
+    setEvent(fetchedEvent);
+    const attendeeIds = (fetchedEvent.attendees || []).map(mapAttendeeId);
+    if (sessionUserId && attendeeIds.includes(sessionUserId)) {
+      setHasJoined(true);
+      setRequestStatus("approved");
+    } else {
+      setHasJoined(false);
+    }
+
+    if (isHostOfEvent(fetchedEvent)) {
+      const normalized = normalizeAttendeeDetails(fetchedEvent.attendees as any[]).filter(
+        (attendee) => attendee._id
+      );
+      setAttendeeDetails(normalized);
+      const pending = (fetchedEvent.joinRequests || []).filter(
+        (req) => req.status === "pending"
+      );
+      setPendingRequests(pending);
+    } else {
+      setAttendeeDetails([]);
+      setPendingRequests([]);
+    }
+  } catch (err: any) {
+    console.error("Error fetching event:", err);
+    setError(t("event_page_load_error"));
+  }
+}, [id, isHostOfEvent, mapAttendeeId, normalizeAttendeeDetails, sessionUserId, t]);
 
 useEffect(() => {
-  if (!event?.startDate) {
+  refreshEventDetails();
+}, [refreshEventDetails]);
+
+useEffect(() => {
+  if (!event?.startDate || !canSeeDetails) {
     setWeatherSummary(null);
     setWeatherError(null);
     return;
@@ -222,12 +348,13 @@ useEffect(() => {
   event?.location?.latitude,
   event?.location?.longitude,
   event?.location?.name,
+  canSeeDetails,
   t,
 ]);
 
   useEffect(() => {
     const fetchComments = async () => {
-      if (!id) return;
+      if (!id || !canSeeDetails) return;
       try {
         const response = await axios.get(`/api/events/${id}/comments`);
         setComments(response.data?.comments ?? []);
@@ -236,6 +363,11 @@ useEffect(() => {
         setComments([]);
       }
     };
+
+    if (!id || !canSeeDetails) {
+      setComments([]);
+      return;
+    }
 
     fetchComments();
 
@@ -247,20 +379,8 @@ useEffect(() => {
 
     window.addEventListener('commentUpdated', handleCommentUpdate);
     return () => window.removeEventListener('commentUpdated', handleCommentUpdate);
-  }, [id]);
+  }, [canSeeDetails, id]);
 
-  const creatorId =
-    typeof (event as any)?.createdBy === "string"
-      ? (event as any)?.createdBy
-      : (event as any)?.createdBy?._id?.toString?.() ??
-        (event as any)?.createdBy?.toString?.();
-
-  const isHost = Boolean(
-    event &&
-      ((sessionUserId && creatorId === sessionUserId) ||
-        (user?.username && event.createdByName === user.username) ||
-        (user?._id && creatorId === user._id))
-  );
   const isFlagged = Boolean(isHost && event?.status === "flagged");
   useEffect(() => {
     if (!isFlagged || !event?.title) {
@@ -312,31 +432,6 @@ useEffect(() => {
     }
   };
 
-  useEffect(() => {
-    // fetch detailed attendee info when host views the page
-    const fetchAttendees = async () => {
-      if (!id || !isHost) return;
-      try {
-        const response = await axios.get(`/api/events/${id}`);
-        const populatedAttendees = response.data?.event?.attendees ?? [];
-        const normalizedAttendees = populatedAttendees.map((attendee: any) => ({
-          _id: attendee?._id?.toString?.() ?? attendee?._id ?? "",
-          name: attendee?.name || "",
-          lastName: attendee?.lastName || "",
-          username: attendee?.username || "",
-          email: attendee?.email || "",
-          image: attendee?.image || "",
-        }));
-        setAttendeeDetails(normalizedAttendees);
-      } catch (fetchError) {
-        console.error("Error fetching attendees:", fetchError);
-        setAttendeeDetails([]);
-      }
-    };
-
-    fetchAttendees();
-  }, [id, isHost]);
-
   // allow guests to join or see confirmation state
   const handleJoin = async () => {
     if (!session?.user) {
@@ -353,18 +448,28 @@ useEffect(() => {
     try {
       const response = await axios.post(`/api/events/${id}/join`, { userId });
 
-      if (response.status === 200) {
-        setHasJoined(true);
+      const nextStatus =
+        (response.data?.requestStatus as "none" | "pending" | "approved" | "declined" | undefined) ??
+        "none";
+      setRequestStatus(nextStatus);
 
+      if (nextStatus === "approved") {
+        setHasJoined(true);
+        setCanViewDetails(true);
+        const updatedAttending = response.data?.attending;
         setEvent((prev) =>
           prev
             ? {
-              ...prev,
-              attending: (prev.attending || 0) + 1,
-              attendees: prev.attendees ? [...prev.attendees, userId] : [userId],
-            }
+                ...prev,
+                attending:
+                  typeof updatedAttending === "number"
+                    ? updatedAttending
+                    : (prev.attending || 0) + (prev.attendees?.includes(userId) ? 0 : 1),
+                attendees: prev.attendees ? [...prev.attendees, userId] : [userId],
+              }
             : prev
         );
+        await refreshEventDetails();
         const message = t("event_join_success_message", {
           title: event?.title || t("event_title_fallback"),
           host: event?.createdByName || t("event_unknown_host"),
@@ -374,8 +479,11 @@ useEffect(() => {
           { message, icon: "CalendarDays" },
           { dedupeByMessage: true }
         );
+      } else if (nextStatus === "pending") {
+        toast("Your join request was sent to the host.");
+      } else if (nextStatus === "declined") {
+        toast.error("The host declined your previous request.");
       } else {
-        console.error("Failed to join event");
         toast.error(t("event_join_error"));
       }
     } catch (error) {
@@ -386,9 +494,60 @@ useEffect(() => {
     }
   };
 
+  const handleRequestDecision = async (
+    targetUserId: string,
+    action: "approve" | "decline" | "remove"
+  ) => {
+    if (!id || !targetUserId) return;
+    setRequestActionLoading(targetUserId);
+    try {
+      const response = await axios.patch(`/api/events/${id}`, {
+        userId: targetUserId,
+        action,
+      });
+
+      const updatedRequests = (response.data?.requests as JoinRequest[] | undefined) ?? [];
+      setPendingRequests(updatedRequests.filter((req) => req.status === "pending"));
+
+      if (response.data?.event) {
+        setEvent(response.data.event);
+        setAttendeeDetails(
+          normalizeAttendeeDetails((response.data.event as any)?.attendees ?? [])
+        );
+      }
+
+      if (action === "approve" && targetUserId === sessionUserId) {
+        setHasJoined(true);
+        setRequestStatus("approved");
+      }
+
+      await refreshEventDetails();
+      const successMessage =
+        action === "approve"
+          ? "Request approved"
+          : action === "decline"
+          ? "Request declined"
+          : "Attendee removed";
+      toast.success(successMessage);
+    } catch (err) {
+      console.error("Error updating join request:", err);
+      const message =
+        (err as any)?.response?.data?.error ||
+        (err as any)?.response?.data?.message ||
+        "Unable to update request";
+      toast.error(message);
+    } finally {
+      setRequestActionLoading(null);
+    }
+  };
+
   const handleAddComment = async () => {
     if (!session?.user) {
       toast(t("You must be logged in to comment"));
+      return;
+    }
+    if (!canSeeDetails) {
+      toast("This event is private. Ask the host to approve your request to comment.");
       return;
     }
     if (!newComment.trim()) {
@@ -441,6 +600,10 @@ useEffect(() => {
 
   const handleDeleteComment = async () => {
     if (!commentToDelete || !session?.user) {
+      return;
+    }
+    if (!canSeeDetails) {
+      toast("You need approval from the host to manage comments.");
       return;
     }
 
@@ -547,6 +710,40 @@ useEffect(() => {
   const heroImage =
     (event as any)?.image ||
     "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80";
+  const isPrivateEvent = event.isPublic === false;
+  const joinButtonLabel = hasJoined
+    ? "Joined"
+    : requestStatus === "pending"
+    ? "Request pending"
+    : requestStatus === "declined"
+    ? "Request again"
+    : joining
+    ? "Joining..."
+    : isPrivateEvent
+    ? "Request to join"
+    : "Join event";
+  const joinButtonDisabled = hasJoined || joining || requestStatus === "pending";
+  const rsvpTitle = hasJoined
+    ? "See you there!"
+    : requestStatus === "pending"
+    ? "Request sent"
+    : requestStatus === "declined"
+    ? "Request declined"
+    : "Join the guest list";
+  const rsvpSubtitle = hasJoined
+    ? "You're confirmed. Check your notifications for reminders."
+    : requestStatus === "pending"
+    ? "Waiting for the host to approve your request."
+    : requestStatus === "declined"
+    ? "The host declined your last request. You can ask again."
+    : "Reserve your spot to receive reminders and updates.";
+  const attendanceStatus = hasJoined
+    ? "You're in"
+    : requestStatus === "pending"
+    ? "Awaiting approval"
+    : requestStatus === "declined"
+    ? "Request declined"
+    : "Seats open";
 
   return (
     <>
@@ -593,6 +790,14 @@ useEffect(() => {
                   </Button>
                 </div>
               </div>
+            </div>
+          )}
+          {isPrivateEvent && !canSeeDetails && (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+              <p className="text-base font-semibold text-white">Private event</p>
+              <p className="mt-1 text-white/70">
+                The host will need to approve your request before details like the location and conversation are visible.
+              </p>
             </div>
           )}
           <section
@@ -651,7 +856,9 @@ useEffect(() => {
                     })}
                   </p>
                   <p className="mt-4 text-lg text-white/85">
-                    {event.description}
+                    {canSeeDetails
+                      ? event.description
+                      : "Details are hidden until the host approves your request."}
                   </p>
                 </div>
 
@@ -668,7 +875,7 @@ useEffect(() => {
                       Status
                     </p>
                     <p className="mt-2 text-lg font-semibold">
-                      {hasJoined ? "You're in" : "Seats open"}
+                      {attendanceStatus}
                     </p>
                   </div>
                   
@@ -681,7 +888,9 @@ useEffect(() => {
                       {event.location?.name || "To be announced"}
                     </p>
                     <p className="text-sm text-white/70">
-                      Share this location with attendees so they know where to arrive.
+                      {canSeeDetails
+                        ? "Share this location with attendees so they know where to arrive."
+                        : "Location stays hidden until the host approves your request."}
                     </p>
                   </div>
                 </div>
@@ -757,31 +966,89 @@ useEffect(() => {
                   RSVP
                 </p>
                 <h2 className="text-2xl font-semibold">
-                  {hasJoined ? "See you there!" : "Join the guest list"}
+                  {rsvpTitle}
                 </h2>
                 <p className="text-sm text-white/70">
-                  {hasJoined
-                    ? "You're confirmed. Check your notifications for reminders."
-                    : "Reserve your spot to receive reminders and updates."}
+                  {rsvpSubtitle}
                 </p>
                 <Button
                   onClick={handleJoin}
-                  disabled={hasJoined || joining}
+                  disabled={joinButtonDisabled}
                   className={`w-full rounded-full px-6 py-3 text-sm font-semibold ${
                     hasJoined
                       ? "bg-white/30 text-white"
                       : "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white"
                   }`}
                 >
-                  {hasJoined ? "Joined" : joining ? "Joining..." : "Join event"}
+                  {joinButtonLabel}
                 </Button>
                 </>
                 ) : (
                   <>
                     <p className="text-sm uppercase tracking-[0.4em] text-white/60">
-                      Attendees
+                      Requests
                     </p>
-                    <h2 className="text-2xl font-semibold">Guest list</h2>
+                    <h2 className="text-2xl font-semibold">Manage guests</h2>
+                    <div className="space-y-3">
+                      {pendingRequests.length === 0 ? (
+                        <p className="text-sm text-white/70">
+                          No pending requests right now.
+                        </p>
+                      ) : (
+                        pendingRequests.map((request) => (
+                          <div
+                            key={request._id}
+                            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"
+                          >
+                            <div className="h-10 w-10 overflow-hidden rounded-full border border-white/10">
+                              <img
+                                src={
+                                  request.user?.image ||
+                                  "https://cdn.pfps.gg/pfps/2301-default-2.png"
+                                }
+                                alt={request.user?.username || "requester"}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-white">
+                                {request.user?.name || request.user?.username || "Guest"}
+                              </p>
+                              <p className="text-xs text-white/70">
+                                {request.user?.email || "Email hidden"}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={requestActionLoading === request.user?._id}
+                                onClick={() =>
+                                  handleRequestDecision(request.user?._id || "", "approve")
+                                }
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={requestActionLoading === request.user?._id}
+                                onClick={() =>
+                                  handleRequestDecision(request.user?._id || "", "decline")
+                                }
+                              >
+                                Decline
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="pt-4">
+                      <p className="text-sm uppercase tracking-[0.4em] text-white/60">
+                        Attendees
+                      </p>
+                    </div>
                     <div className="space-y-3">
                       {attendeeDetails.length === 0 ? (
                         <p className="text-sm text-white/70">
@@ -812,6 +1079,18 @@ useEffect(() => {
                                 {attendee.email || "Email hidden"}
                               </p>
                             </div>
+                            <div className="ml-auto flex gap-2">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={requestActionLoading === attendee._id}
+                                onClick={() =>
+                                  handleRequestDecision(attendee._id, "remove")
+                                }
+                              >
+                                Remove
+                              </Button>
+                            </div>
                           </div>
                         ))
                       )}
@@ -822,108 +1101,123 @@ useEffect(() => {
               
             </div>
           </section>
-          <section
-            data-aos="fade-up"
-            className="rounded-[32px] border border-white/10 bg-slate-900/40 p-8 shadow-[0_25px_90px_rgba(15,23,42,0.35)]"
-          >
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.5em] text-white/60">
-                  Conversation
-                </p>
-                <h2 className="text-2xl font-semibold text-white">
-                  Comments ({comments.length})
-                </h2>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {comments.length === 0 ? (
-                <p className="text-sm text-white/60">
-                  Be the first to share your thoughts about this event.
-                </p>
-              ) : (
-                comments.map((comment, index) => {
-                  const isOwnComment = (session?.user as CustomSessionUser)?.id === comment.userId;
-                  
-                  return (
-                    <div
-                      key={comment._id}
-                      data-aos="fade-up"
-                      data-aos-delay={index * 70}
-                      className="flex gap-4 rounded-3xl border border-white/10 bg-white/5 p-4"
-                    >
-                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border border-white/10">
-                        <img
-                          src={
-                            comment.userImage ||
-                            "https://cdn.pfps.gg/pfps/2301-default-2.png"
-                          }
-                          alt={comment.userName}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm text-white/70">
-                            <p className="font-semibold text-white">
-                              {comment.userName}
-                            </p>
-                            <span className="text-xs text-white/50">
-                              {new Date(comment.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                          {isOwnComment && (
-                            <button
-                              onClick={() => {
-                                setCommentToDelete(comment._id);
-                                setDeleteModalOpen(true);
-                              }}
-                              className="text-xs text-red-400 transition hover:text-red-300"
-                              title="Delete comment"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                        <p className="mt-2 text-white/80">{comment.text}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <div
+          {canSeeDetails ? (
+            <section
               data-aos="fade-up"
-              className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-5"
+              className="rounded-[32px] border border-white/10 bg-slate-900/40 p-8 shadow-[0_25px_90px_rgba(15,23,42,0.35)]"
             >
-              {session?.user ? (
-                <>
-                  <p className="text-sm uppercase tracking-[0.4em] text-white/60">
-                    Add a comment
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.5em] text-white/60">
+                    Conversation
                   </p>
-                  <textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Share details, plans, or tips for fellow attendees..."
-                    className="mt-3 h-28 w-full rounded-2xl border border-white/10 bg-slate-900/60 p-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
-                  />
-                  <Button
-                    onClick={handleAddComment}
-                    disabled={addingComment}
-                    className="mt-3 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-2 text-sm font-semibold text-white"
-                  >
-                    {addingComment ? "Posting..." : "Post comment"}
-                  </Button>
-                </>
-              ) : (
-                <p className="text-sm text-white/70">
-                  Log in to join the conversation.
-                </p>
-              )}
-            </div>
-          </section>
+                  <h2 className="text-2xl font-semibold text-white">
+                    Comments ({comments.length})
+                  </h2>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {comments.length === 0 ? (
+                  <p className="text-sm text-white/60">
+                    Be the first to share your thoughts about this event.
+                  </p>
+                ) : (
+                  comments.map((comment, index) => {
+                    const isOwnComment = (session?.user as CustomSessionUser)?.id === comment.userId;
+                    
+                    return (
+                      <div
+                        key={comment._id}
+                        data-aos="fade-up"
+                        data-aos-delay={index * 70}
+                        className="flex gap-4 rounded-3xl border border-white/10 bg-white/5 p-4"
+                      >
+                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border border-white/10">
+                          <img
+                            src={
+                              comment.userImage ||
+                              "https://cdn.pfps.gg/pfps/2301-default-2.png"
+                            }
+                            alt={comment.userName}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm text-white/70">
+                              <p className="font-semibold text-white">
+                                {comment.userName}
+                              </p>
+                              <span className="text-xs text-white/50">
+                                {new Date(comment.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                            {isOwnComment && (
+                              <button
+                                onClick={() => {
+                                  setCommentToDelete(comment._id);
+                                  setDeleteModalOpen(true);
+                                }}
+                                className="text-xs text-red-400 transition hover:text-red-300"
+                                title="Delete comment"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                          <p className="mt-2 text-white/80">{comment.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div
+                data-aos="fade-up"
+                className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-5"
+              >
+                {session?.user ? (
+                  <>
+                    <p className="text-sm uppercase tracking-[0.4em] text-white/60">
+                      Add a comment
+                    </p>
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share details, plans, or tips for fellow attendees..."
+                      className="mt-3 h-28 w-full rounded-2xl border border-white/10 bg-slate-900/60 p-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
+                    />
+                    <Button
+                      onClick={handleAddComment}
+                      disabled={addingComment}
+                      className="mt-3 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-2 text-sm font-semibold text-white"
+                    >
+                      {addingComment ? "Posting..." : "Post comment"}
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-white/70">
+                    Log in to join the conversation.
+                  </p>
+                )}
+              </div>
+            </section>
+          ) : (
+            <section
+              data-aos="fade-up"
+              className="rounded-[32px] border border-white/10 bg-slate-900/40 p-8 text-sm text-white/80 shadow-[0_25px_90px_rgba(15,23,42,0.35)]"
+            >
+              <p className="text-xs uppercase tracking-[0.5em] text-white/60">
+                Conversation
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Hidden for now</h2>
+              <p className="mt-2">
+                This is a private event. Request access and once the host approves, you will be able to view and join the conversation.
+              </p>
+            </section>
+          )}
         </div>
       </div>
 

@@ -24,6 +24,13 @@ type Event = {
   attendees: string[];
   status: string;
   photos?: string[];
+  joinRequests?: {
+    _id: string;
+    status: string;
+    user?: { _id?: string };
+  }[];
+  requestStatus?: "none" | "pending" | "approved" | "declined";
+  canViewDetails?: boolean;
 };
 
 type EventsContextType = {

@@ -217,10 +217,10 @@ export default function Navbar() {
 
 return (
   <div className="w-full">
-    <NavigationMenu className="px-4 w-full py-2">
+    <NavigationMenu className="px-4 w-full bg-slate-900 py-2">
       <NavigationMenuList
         className="
-          grid w-full items-center gap-4
+          grid w-full items-center gap-4 
           grid-cols-[auto_auto_1fr_auto_auto_auto]
         "
       >
@@ -250,10 +250,10 @@ return (
                         </AvatarFallback>
                       </Avatar>
 
-                      <h1 className="text-xl font-semibold">
+                      <h1 className="text-xl font-semibold text-slate-300">
                         {user?.name + " " + user?.lastName}
                       </h1>
-                      <h2 className="text-md text-slate-700">
+                      <h2 className="text-md text-slate-300">
                         @{user?.username}
                       </h2>
 
@@ -265,7 +265,7 @@ return (
                       </Link>
                     </li>
 
-                    <li className="text-gray-600 text-sm">
+                    <li className="text-gray-300 text-sm">
                       {t("text1side")}<br />{t("text2side")}
                     </li>
 
@@ -295,19 +295,53 @@ return (
             </nav>
 
             <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="flex flex-col space-y-[0.20rem]"
-            >
-              <span className="block w-8 h-1 bg-slate-400 rounded"></span>
-              <span className="block w-8 h-1 bg-slate-400 rounded"></span>
-              <span className="block w-8 h-1 bg-slate-400 rounded"></span>
-            </button>
+  onClick={() => setIsOpen(!isOpen)}
+  aria-label="Main Menu"
+  aria-expanded={isOpen}
+  className={cn("bg-transparent border-0 p-0 cursor-pointer flex", isOpen && "opened")}
+>
+  <svg width="40" height="40" viewBox="0 0 100 100">
+    <path
+      d="M 20,29.000046 H 80.000231 C 80.000231,29.000046 94.498839,28.817352 94.532987,66.711331 94.543142,77.980673 90.966081,81.670246 85.259173,81.668997 79.552261,81.667751 75.000211,74.999942 75.000211,74.999942 L 25.000021,25.000058"
+      fill="none"
+      stroke="white"
+      strokeWidth="6"
+      className="transition-[stroke-dasharray,stroke-dashoffset] duration-[600ms]"
+      style={{
+        strokeDasharray: isOpen ? "90 207" : "60 207",
+        strokeDashoffset: isOpen ? -134 : 0,
+      }}
+    />
+    <path
+      d="M 20,50 H 80"
+      fill="none"
+      stroke="white"
+      strokeWidth="6"
+      className="transition-[stroke-dasharray,stroke-dashoffset] duration-[600ms]"
+      style={{
+        strokeDasharray: isOpen ? "1 60" : "60 60",
+        strokeDashoffset: isOpen ? -30 : 0,
+      }}
+    />
+    <path
+      d="M 20,70.999954 H 80.000231 C 80.000231,70.999954 94.498839,71.182648 94.532987,33.288669 94.543142,22.019327 90.966081,18.329754 85.259173,18.331003 79.552261,18.332249 75.000211,25.000058 75.000211,25.000058 L 25.000021,74.999942"
+      fill="none"
+      stroke="white"
+      strokeWidth="6"
+      className="transition-[stroke-dasharray,stroke-dashoffset] duration-[600ms]"
+      style={{
+        strokeDasharray: isOpen ? "90 207" : "60 207",
+        strokeDashoffset: isOpen ? -134 : 0,
+      }}
+    />
+  </svg>
+</button>
           </div>
         </NavigationMenuItem>
 
         {/* 2) Logo */}
         <NavigationMenuItem>
-          <Link href="/" className="font-bold text-2xl cursor-pointer">
+          <Link href="/" className="font-bold text-2xl  text-white cursor-pointer">
             Eventful
           </Link>
         </NavigationMenuItem>
